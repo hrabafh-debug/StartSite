@@ -68,30 +68,33 @@ public partial class ProjectItem : ObservableObject
         OnPropertyChanged(string.Empty);
     }
 
+    /// <summary>Po přepnutí jazyka.</summary>
+    public void RefreshTexts() => OnPropertyChanged(string.Empty);
+
     public ProjectDto Dto => dto;
     public string Id => dto.Id;
     public string Name => dto.Name;
     public string Kind => dto.Kind;
-    public string KindLabel => dto.Kind switch { "npm" => "npm", "compose" => "compose", "dockerfile" => "docker", _ => "příkaz" };
+    public string KindLabel => dto.Kind switch { "npm" => "npm", "compose" => "compose", "dockerfile" => "docker", _ => Loc.T("KindCustom") };
     public string Path => dto.Path;
     public int Port => dto.Port;
     public string PortLabel => $":{dto.Port}";
     public string Url => dto.Url;
     public string Status => dto.Runtime.Status;
-    public string StatusLabel => Status switch { "running" => "Běží", "starting" => "Startuje", "error" => "Chyba", _ => "Zastaveno" };
+    public string StatusLabel => Status switch { "running" => Loc.T("StatusRunning"), "starting" => Loc.T("StatusStarting"), "error" => Loc.T("StatusError"), _ => Loc.T("StatusStopped") };
     public bool IsRunning => Status == "running";
     public bool IsStarting => Status == "starting";
     public bool IsActive => IsRunning || IsStarting;
     public bool IsErrorState => Status == "error";
     public string ToggleIcon => IsActive ? Icons.Stop : Icons.Play;
-    public string ToggleText => IsActive ? "Zastavit" : "Spustit";
+    public string ToggleText => IsActive ? Loc.T("Stop") : Loc.T("Start");
     public string Subtitle => IsErrorState && !string.IsNullOrEmpty(dto.Runtime.Error) ? dto.Runtime.Error! : dto.Path;
     public string ResolvedCommand => dto.ResolvedCommand;
-    public string ProcessText => dto.Runtime.Pid is int pid ? $"PID {pid}" : Kind is "npm" or "custom" ? "Neběží" : "Kontejner v Dockeru";
+    public string ProcessText => dto.Runtime.Pid is int pid ? $"PID {pid}" : Kind is "npm" or "custom" ? Loc.T("NotRunning") : Loc.T("DockerContainer");
     public List<EnvEntry> EnvEntries => dto.Env.Select(kv => new EnvEntry(kv.Key, kv.Value)).ToList();
     public bool HasEnv => dto.Env.Count > 0;
-    public string EnvEmptyText => $"Jen PORT={dto.Port}";
-    public string LinkHint => IsRunning ? "Port odpovídá." : IsStarting ? "Čekám, až port odpoví." : "Odkaz bude aktivní, až projekt poběží.";
+    public string EnvEmptyText => Loc.F("EnvOnlyPort", dto.Port);
+    public string LinkHint => IsRunning ? Loc.T("LinkRunning") : IsStarting ? Loc.T("LinkStarting") : Loc.T("LinkStopped");
 
     // Chyby: stav z backendu nebo selhaná akce v aplikaci
     [ObservableProperty, NotifyPropertyChangedFor(nameof(ErrorMessage), nameof(ShowError))]
@@ -99,11 +102,11 @@ public partial class ProjectItem : ObservableObject
 
     public bool ShowError => IsErrorState || !string.IsNullOrEmpty(ActionError);
     public string ErrorMessage => dto.Runtime.PortOwner is { } o
-        ? $"Port {dto.Port} je obsazený. Drží ho {o.Name} s PID {o.Pid}."
+        ? Loc.F("PortTaken", dto.Port, o.Name, o.Pid)
         : ActionError ?? dto.Runtime.Error ?? "";
     public bool HasSuggestion => dto.Runtime.SuggestedPort.HasValue;
     public int? SuggestedPort => dto.Runtime.SuggestedPort;
-    public string SuggestionText => $"Spustit na {dto.Runtime.SuggestedPort}";
+    public string SuggestionText => Loc.F("StartOn", dto.Runtime.SuggestedPort);
 
     [ObservableProperty]
     private bool busy;
@@ -118,10 +121,10 @@ public partial class ProjectItem : ObservableObject
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasErrors), nameof(ErrorCountText))]
     private int errorCount;
 
-    public string LogCountText => $"{LogCount} řádků";
+    public string LogCountText => Loc.F("LogLines", LogCount);
     public bool HasNoLogs => LogCount == 0;
     public bool HasErrors => ErrorCount > 0;
-    public string ErrorCountText => $"Chyby {ErrorCount}";
+    public string ErrorCountText => Loc.F("LogErrors", ErrorCount);
 
     public void SetLogs(IEnumerable<LogLineDto> lines)
     {
@@ -167,6 +170,21 @@ public partial class MainViewModel : ObservableObject
         this.events = events;
         Form = new ProjectFormViewModel(api, OnSaved);
         UpdateThemeIcon();
+        Loc.Instance.Changed += OnLanguageChanged;
+    }
+
+    [RelayCommand]
+    void ToggleLanguage() => Loc.Instance.Toggle();
+
+    /// <summary>Texty skládané v kódu se po přepnutí jazyka musí přepočítat.</summary>
+    void OnLanguageChanged()
+    {
+        foreach (var p in all) p.RefreshTexts();
+        ApplyFilter();
+        UpdateThemeIcon();
+        CopyText = Loc.T("Copy");
+        PortHint = null;
+        Form.RefreshTexts();
     }
 
     public ProjectFormViewModel Form { get; }
@@ -187,7 +205,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string themeTooltip = "";
     [ObservableProperty] private bool confirmDelete;
     [ObservableProperty] private string copyIcon = Icons.Copy;
-    [ObservableProperty] private string copyText = "Kopírovat";
+    [ObservableProperty] private string copyText = Loc.T("Copy");
     [ObservableProperty] private string emptyPath = "";
 
     // Editor portu v detailu
@@ -340,13 +358,73 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    // ---------- hledání a filtr stavu ----------
+
+    /// <summary>all | running | stopped | error</summary>
+    [ObservableProperty] private string statusFilter = "all";
+    [ObservableProperty] private string filterAllText = "";
+    [ObservableProperty] private string filterRunningText = "";
+    [ObservableProperty] private string filterStoppedText = "";
+    [ObservableProperty] private string filterErrorText = "";
+    [ObservableProperty] private string resultText = "";
+    public bool HasSearch => !string.IsNullOrWhiteSpace(Search) || StatusFilter != "all";
+
+    /// <summary>Malá písmena bez diakritiky: "Dolní" i "dolni" se najdou stejně.</summary>
+    static string Fold(string s)
+    {
+        var d = s.Normalize(System.Text.NormalizationForm.FormD);
+        var sb = new System.Text.StringBuilder(d.Length);
+        foreach (var c in d)
+            if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark) sb.Append(char.ToLowerInvariant(c));
+        return sb.ToString();
+    }
+
+    static bool MatchesStatus(ProjectItem p, string filter) => filter switch
+    {
+        "running" => p.IsActive,
+        "stopped" => p.Status == "stopped",
+        "error" => p.IsErrorState,
+        _ => true,
+    };
+
+    /// <summary>Všechna slova dotazu musí sedět na název, ID, složku, port, typ nebo stav.</summary>
+    static bool MatchesQuery(ProjectItem p, string[] tokens)
+    {
+        if (tokens.Length == 0) return true;
+        var haystack = Fold($"{p.Name} {p.Id} {p.Path} {p.Port} :{p.Port} {p.Kind} {p.KindLabel} {p.StatusLabel}");
+        return tokens.All(haystack.Contains);
+    }
+
+    [RelayCommand]
+    void SetStatusFilter(string filter) => StatusFilter = StatusFilter == filter && filter != "all" ? "all" : filter;
+
+    [RelayCommand]
+    void ClearSearch()
+    {
+        Search = "";
+        StatusFilter = "all";
+    }
+
+    /// <summary>Enter v hledání: vybere první výsledek.</summary>
+    [RelayCommand]
+    void SelectFirstMatch()
+    {
+        if (Projects.Count > 0) Selected = Projects[0];
+    }
+
+    partial void OnStatusFilterChanged(string value) => ApplyFilter();
+
     void ApplyFilter()
     {
-        var q = Search.Trim();
-        var filtered = string.IsNullOrEmpty(q)
-            ? all.ToList()
-            : all.Where(p => new[] { p.Name, p.Id, p.Path, p.Port.ToString(), p.Kind }
-                .Any(v => v.Contains(q, StringComparison.OrdinalIgnoreCase))).ToList();
+        var tokens = Fold(Search).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var filtered = all.Where(p => MatchesStatus(p, StatusFilter) && MatchesQuery(p, tokens)).ToList();
+
+        FilterAllText = Loc.F("FilterAll", all.Count);
+        FilterRunningText = Loc.F("FilterRunning", all.Count(p => p.IsActive));
+        FilterStoppedText = Loc.F("FilterStopped", all.Count(p => p.Status == "stopped"));
+        FilterErrorText = Loc.F("FilterError", all.Count(p => p.IsErrorState));
+        ResultText = HasSearch ? Loc.F("Results", filtered.Count, all.Count) : "";
+        OnPropertyChanged(nameof(HasSearch));
         // Kolekci upravujeme po položkách, aby seznam neztratil výběr
         for (var i = Projects.Count - 1; i >= 0; i--)
             if (!filtered.Contains(Projects[i])) Projects.RemoveAt(i);
@@ -359,7 +437,7 @@ public partial class MainViewModel : ObservableObject
         HasProjects = all.Count > 0;
         NoMatches = all.Count > 0 && filtered.Count == 0;
         var running = all.Count(p => p.IsRunning);
-        Summary = all.Count > 0 ? $"{running}/{all.Count} běží" : "";
+        Summary = all.Count > 0 ? Loc.F("Summary", running, all.Count) : "";
     }
 
     partial void OnSearchChanged(string value) => ApplyFilter();
@@ -472,10 +550,10 @@ public partial class MainViewModel : ObservableObject
         if (Selected == null) return;
         await Clipboard.Default.SetTextAsync(Selected.Url);
         CopyIcon = Icons.Check;
-        CopyText = "Zkopírováno";
+        CopyText = Loc.T("Copied");
         await Task.Delay(1400);
         CopyIcon = Icons.Copy;
-        CopyText = "Kopírovat";
+        CopyText = Loc.T("Copy");
     }
 
     [RelayCommand]
@@ -537,7 +615,7 @@ public partial class MainViewModel : ObservableObject
     {
         var theme = Preferences.Get("theme", "system");
         ThemeIcon = theme switch { "light" => Icons.Sun, "dark" => Icons.Moon, _ => Icons.Desktop };
-        ThemeTooltip = theme switch { "light" => "Motiv: světlý", "dark" => "Motiv: tmavý", _ => "Motiv: podle systému" };
+        ThemeTooltip = theme switch { "light" => Loc.T("ThemeLight"), "dark" => Loc.T("ThemeDark"), _ => Loc.T("ThemeSystem") };
     }
 
     // ---------- port v detailu ----------
@@ -569,8 +647,8 @@ public partial class MainViewModel : ObservableObject
             {
                 PortHintIsError = !check.Free;
                 PortHint = check.Free
-                    ? "Volný." + (active ? " Projeví se po restartu." : "") + (check.Project != null ? $" V konfiguraci ho má {check.Project}." : "")
-                    : $"Drží ho {check.Owner?.Name} (PID {check.Owner?.Pid})";
+                    ? Loc.T("PortFree") + (active ? Loc.T("PortAfterRestart") : "") + (check.Project != null ? Loc.F("PortInConfig", check.Project) : "")
+                    : Loc.F("PortHeldBy", check.Owner?.Name, check.Owner?.Pid);
             });
         }, token);
     }
@@ -627,6 +705,8 @@ public partial class ProjectFormViewModel : ObservableObject
     readonly ApiClient api;
     readonly Action<ProjectDto> onSaved;
     string? editId;
+    /// <summary>Nový projekt (ne úprava): ukáže návod na import přes Claude.</summary>
+    [ObservableProperty] private bool isNew = true;
     int? originalPort;
     bool nameTouched;
     bool settingName;
@@ -644,10 +724,10 @@ public partial class ProjectFormViewModel : ObservableObject
         new("npm", "npm", "package.json"),
         new("compose", "compose", "docker compose"),
         new("dockerfile", "docker", "Dockerfile"),
-        new("custom", "příkaz", "vlastní příkaz"),
+        new("custom", "command", "custom command"),
     ];
 
-    public List<string> FrameworkLabels { get; } = ["Vite", "Astro", "SvelteKit", "Next.js", "Jiný (jen PORT)"];
+    public List<string> FrameworkLabels => ["Vite", "Astro", "SvelteKit", "Next.js", Loc.T("FrameworkOther")];
     static readonly string[] FrameworkKeys = ["vite", "astro", "sveltekit", "next", "other"];
 
     public ObservableCollection<string> Scripts { get; } = new();
@@ -655,8 +735,8 @@ public partial class ProjectFormViewModel : ObservableObject
     public ObservableCollection<EnvRow> EnvRows { get; } = new();
 
     [ObservableProperty] private bool isOpen;
-    [ObservableProperty] private string title = "Nový projekt";
-    [ObservableProperty] private string saveText = "Přidat projekt";
+    [ObservableProperty] private string title = Loc.T("FormNew");
+    [ObservableProperty] private string saveText = Loc.T("FormAdd");
     [ObservableProperty] private string path = "";
     [ObservableProperty] private string name = "";
     [ObservableProperty, NotifyPropertyChangedFor(nameof(IsNpm), nameof(IsCustom), nameof(IsDocker), nameof(IsComposeMulti), nameof(ContainerPortHint))]
@@ -689,8 +769,28 @@ public partial class ProjectFormViewModel : ObservableObject
     public bool HasScripts => Scripts.Count > 0;
     public string ScriptPreview => Script != null && detected != null && detected.Scripts.TryGetValue(Script, out var cmd) ? $"{Script}: {cmd}" : "";
     public string ContainerPortHint => detected?.ContainerPort != null
-        ? (Kind == "compose" ? "Načteno z compose" : "Načteno z EXPOSE v Dockerfile")
-        : "Nenašel jsem ho, doplň ručně.";
+        ? (Kind == "compose" ? Loc.T("ContainerFromCompose") : Loc.T("ContainerFromExpose"))
+        : Loc.T("ContainerUnknown");
+
+    /// <summary>Po přepnutí jazyka.</summary>
+    public void RefreshTexts()
+    {
+        Title = Loc.T(editId == null ? "FormNew" : "FormEdit");
+        SaveText = Loc.T(editId == null ? "FormAdd" : "Save");
+        PathHint = detected is { Exists: true } d ? DetectedHint(d) : Loc.T("PathHint");
+        // Picker při výměně seznamu ztratí výběr, vrátíme ho
+        var framework = FrameworkIndex;
+        OnPropertyChanged(nameof(FrameworkLabels));
+        FrameworkIndex = framework;
+        OnPropertyChanged(nameof(ContainerPortHint));
+        PortHint = null;
+    }
+
+    static string DetectedHint(DetectResult d)
+    {
+        var kindLabel = d.Kind switch { "custom" => Loc.T("KindCustom"), "dockerfile" => "docker", _ => d.Kind };
+        return Loc.F("Detected", kindLabel) + (d.Framework is { } fw && fw != "other" ? $", {fw}" : "");
+    }
 
     void Reset()
     {
@@ -708,10 +808,11 @@ public partial class ProjectFormViewModel : ObservableObject
     {
         Reset();
         editId = null;
+        IsNew = true;
         originalPort = null;
         nameTouched = false;
-        Title = "Nový projekt";
-        SaveText = "Přidat projekt";
+        Title = Loc.T("FormNew");
+        SaveText = Loc.T("FormAdd");
         SetName("");
         Kind = "npm";
         Script = null;
@@ -721,7 +822,7 @@ public partial class ProjectFormViewModel : ObservableObject
         ContainerPort = "";
         Service = null;
         Path = initialPath ?? "";
-        PathHint = "Vlož cestu nebo vyber složku, typ se pozná sám.";
+        PathHint = Loc.T("PathHint");
         IsOpen = true;
         if (!string.IsNullOrWhiteSpace(Path)) _ = DetectAsync(true);
     }
@@ -730,10 +831,11 @@ public partial class ProjectFormViewModel : ObservableObject
     {
         Reset();
         editId = p.Id;
+        IsNew = false;
         originalPort = p.Port;
         nameTouched = true;
-        Title = "Upravit projekt";
-        SaveText = "Uložit";
+        Title = Loc.T("FormEdit");
+        SaveText = Loc.T("Save");
         SetName(p.Name);
         Path = p.Path;
         Kind = p.Kind;
@@ -779,14 +881,14 @@ public partial class ProjectFormViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(Path)) return;
         Detecting = true;
         PathError = null;
-        PathHint = "Čtu složku…";
+        PathHint = Loc.T("Reading");
         try
         {
             var d = await api.DetectAsync(Path.Trim());
             detected = d;
             if (!d.Exists)
             {
-                PathError = "Složka neexistuje";
+                PathError = Loc.T("FolderMissing");
                 PathHint = "";
                 return;
             }
@@ -798,8 +900,7 @@ public partial class ProjectFormViewModel : ObservableObject
             OnPropertyChanged(nameof(IsComposeMulti));
             OnPropertyChanged(nameof(ContainerPortHint));
             OnPropertyChanged(nameof(ScriptPreview));
-            var kindLabel = KindOptions.First(k => k.Key == d.Kind).Label;
-            PathHint = $"Rozpoznáno: {kindLabel}" + (d.Framework is { } fw && fw != "other" ? $", {fw}" : "");
+            PathHint = DetectedHint(d);
             if (!applyDefaults) return;
             Path = d.Path;
             Kind = d.Kind;
@@ -856,8 +957,8 @@ public partial class ProjectFormViewModel : ObservableObject
             {
                 PortHintIsError = !check.Free;
                 PortHint = check.Free
-                    ? "Volný" + (check.Project != null ? $", ale v konfiguraci ho má {check.Project}" : "")
-                    : $"Drží ho {check.Owner?.Name} (PID {check.Owner?.Pid})";
+                    ? (check.Project != null ? Loc.F("FreeButInConfig", check.Project) : Loc.T("Free"))
+                    : Loc.F("PortHeldBy", check.Owner?.Name, check.Owner?.Pid);
             });
         }, token);
     }
@@ -880,18 +981,18 @@ public partial class ProjectFormViewModel : ObservableObject
     {
         PathError = NameError = PortError = CommandError = ScriptError = ContainerPortError = EnvError = FormError = null;
         var ok = true;
-        if (string.IsNullOrWhiteSpace(Path)) { PathError = "Zadej cestu ke složce"; ok = false; }
-        if (string.IsNullOrWhiteSpace(Name)) { NameError = "Zadej název"; ok = false; }
-        if (!int.TryParse(Port, out var port) || port is < 1 or > 65535) { PortError = "Port musí být 1 až 65535"; ok = false; }
-        if (IsCustom && string.IsNullOrWhiteSpace(Command)) { CommandError = "Zadej příkaz"; ok = false; }
+        if (string.IsNullOrWhiteSpace(Path)) { PathError = Loc.T("ValPath"); ok = false; }
+        if (string.IsNullOrWhiteSpace(Name)) { NameError = Loc.T("ValName"); ok = false; }
+        if (!int.TryParse(Port, out var port) || port is < 1 or > 65535) { PortError = Loc.T("ValPort"); ok = false; }
+        if (IsCustom && string.IsNullOrWhiteSpace(Command)) { CommandError = Loc.T("ValCommand"); ok = false; }
         int? cport = int.TryParse(ContainerPort, out var cp) ? cp : null;
-        if (IsDocker && cport == null) { ContainerPortError = "Zadej port uvnitř kontejneru"; ok = false; }
+        if (IsDocker && cport == null) { ContainerPortError = Loc.T("ValContainerPort"); ok = false; }
         var env = new Dictionary<string, string>();
         foreach (var row in EnvRows)
         {
             var key = row.Key.Trim();
             if (key.Length == 0) continue;
-            if (!System.Text.RegularExpressions.Regex.IsMatch(key, "^[A-Za-z_][A-Za-z0-9_]*$")) { EnvError = $"Neplatný název proměnné: {key}"; ok = false; }
+            if (!System.Text.RegularExpressions.Regex.IsMatch(key, "^[A-Za-z_][A-Za-z0-9_]*$")) { EnvError = Loc.F("ValEnv", key); ok = false; }
             env[key] = row.Value;
         }
         if (!ok) return;

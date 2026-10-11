@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Návod, jak nechat Claude naimportovat projekty přes MCP. Je v prázdném stavu i ve formuláři nového projektu. -->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:s="clr-namespace:StartSite.Desktop.Services"
+             x:Class="StartSite.Desktop.Views.ClaudeImportCard">
+    <Border Padding="20,18" StrokeShape="RoundRectangle 12"
+            BackgroundColor="{AppThemeBinding Light=White, Dark={StaticResource Zinc925}}">
+        <VerticalStackLayout Spacing="16">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                <!-- Hvězdička Claude -->
+                <Border WidthRequest="36" HeightRequest="36" StrokeThickness="0" StrokeShape="RoundRectangle 9" VerticalOptions="Start"
+                        BackgroundColor="{AppThemeBinding Light=#FBF1EC, Dark=#2A1A14}">
+                    <Polygon Points="12.00,0.50 12.67,9.49 16.95,3.44 13.84,10.16 21.96,6.25 14.51,11.33 21.89,12.00 14.51,12.67 21.96,17.75 13.84,13.84 16.95,20.56 12.67,14.51 12.00,23.50 11.33,14.51 7.06,20.56 10.16,13.84 2.04,17.75 9.49,12.67 2.11,12.00 9.49,11.33 2.04,6.25 10.16,10.16 7.05,3.44 11.33,9.49"
+                             Fill="#D97757" WidthRequest="24" HeightRequest="24" HorizontalOptions="Center" VerticalOptions="Center" />
+                </Border>
+                <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                    <Label Text="{s:T ClaudeTitle}" FontFamily="{StaticResource SansSemi}" FontSize="15" />
+                    <Label Text="{s:T ClaudeHint}" Style="{StaticResource Muted}" LineBreakMode="WordWrap" />
+                </VerticalStackLayout>
+            </Grid>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="{s:T ClaudeStep1}" Style="{StaticResource FieldLabel}" />
+                <Border Padding="12,8" StrokeShape="RoundRectangle 8"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource Zinc50}, Dark={StaticResource Zinc900}}">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <Label x:Name="McpCommandLabel" Style="{StaticResource MonoLabel}" FontSize="12" LineBreakMode="CharacterWrap" VerticalOptions="Center" />
+                        <Button x:Name="CopyMcpButton" Grid.Column="1" Text="{s:T Copy}" Clicked="OnCopyMcp" HeightRequest="28" FontSize="12" VerticalOptions="Center" />
+                    </Grid>
+                </Border>
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="6">
+                <Label Text="{s:T ClaudeStep2}" Style="{StaticResource FieldLabel}" />
+                <Border Padding="0" StrokeShape="RoundRectangle 8"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource Zinc50}, Dark={StaticResource Zinc900}}">
+                    <Grid ColumnDefinitions="3,*">
+                        <BoxView Color="#D97757" />
+                        <VerticalStackLayout Grid.Column="1" Spacing="10" Padding="14,12">
+                            <Label Text="{s:T ClaudeImportPrompt}" FontSize="13" LineHeight="1.35" LineBreakMode="WordWrap"
+                                   TextColor="{AppThemeBinding Light={StaticResource Zinc800}, Dark={StaticResource Zinc200}}" />
+                            <Button x:Name="CopyPromptButton" Text="{s:T Copy}" Clicked="OnCopyPrompt" HeightRequest="28" FontSize="12" HorizontalOptions="Start" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+            </VerticalStackLayout>
+
+            <Label Text="{s:T ClaudeStep3}" Style="{StaticResource Muted}" />
+        </VerticalStackLayout>
+    </Border>
+</ContentView>

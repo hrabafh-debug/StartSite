@@ -123,6 +123,15 @@
                 <Setter Property="BackgroundColor" Value="Transparent" />
                 <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc600}, Dark={StaticResource Zinc400}}" />
             </Style>
+            <Style x:Key="FilterChip" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+                <Setter Property="HeightRequest" Value="26" />
+                <Setter Property="MinimumHeightRequest" Value="26" />
+                <Setter Property="Padding" Value="10,0" />
+                <Setter Property="CornerRadius" Value="13" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="BackgroundColor" Value="Transparent" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc600}, Dark={StaticResource Zinc400}}" />
+            </Style>
             <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
                 <Setter Property="TextColor" Value="{AppThemeBinding Light=#B91C1C, Dark=#F87171}" />
             </Style>

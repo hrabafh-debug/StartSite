@@ -17,6 +17,8 @@ public partial class MainPage : ContentPage
         InitializeComponent();
         BindingContext = this.vm = vm;
         AppTitleBar = BuildTitleBar(vm);
+        ApplyListWidth(Preferences.Get("listWidth", DefaultListWidth));
+        Splitter.HandlerChanged += (_, _) => HookSplitter();
         vm.Form.PropertyChanged += OnFormChanged;
         if (Application.Current != null)
             Application.Current.RequestedThemeChanged += (_, _) => vm.RebuildLogColors();
@@ -28,6 +30,94 @@ public partial class MainPage : ContentPage
             await Task.Delay(300);
             SearchEntry.Unfocus();
         };
+    }
+
+    // ---------- šířka seznamu projektů ----------
+
+    const double DefaultListWidth = 380;
+    const double MinListWidth = 260;
+    const double MaxListWidth = 720;
+    double ListWidth => MainGrid.ColumnDefinitions[0].Width.Value;
+
+    void ApplyListWidth(double width)
+    {
+        // Detail musí mít aspoň 360 px, i když je okno úzké
+        var max = Width > 0 ? Math.Min(MaxListWidth, Width - 360) : MaxListWidth;
+        MainGrid.ColumnDefinitions[0].Width = new GridLength(Math.Clamp(width, MinListWidth, Math.Max(MinListWidth, max)));
+    }
+
+    void HighlightSplitter(bool on)
+    {
+        SplitterLine.WidthRequest = on ? 2 : 1;
+        if (on) SplitterLine.SetAppThemeColor(BoxView.ColorProperty, Color.FromArgb("#A1A1AA"), Color.FromArgb("#52525B"));
+        else SplitterLine.SetAppThemeColor(BoxView.ColorProperty, Color.FromArgb("#E4E4E7"), Color.FromArgb("#27272A"));
+    }
+
+#if WINDOWS
+    bool splitterHooked;
+    bool dragging;
+    double dragStartX;
+    double dragStartWidth;
+#endif
+
+    /// <summary>
+    /// Tažení úchytu přes nativní WinUI ukazatel. MAUI PanGestureRecognizer s myší na Windows
+    /// nespolehlivě startuje a bez zachycení ukazatele by se tažení utrhlo, jakmile myš opustí úchyt.
+    /// </summary>
+    void HookSplitter()
+    {
+#if WINDOWS
+        if (splitterHooked || Splitter.Handler?.PlatformView is not Microsoft.UI.Xaml.UIElement element) return;
+        splitterHooked = true;
+
+        // Kurzor ↔: WinUI ho nastavuje jen přes chráněnou vlastnost
+        typeof(Microsoft.UI.Xaml.UIElement)
+            .GetProperty("ProtectedCursor", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+            ?.SetValue(element, Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast));
+
+        void EndDrag()
+        {
+            if (!dragging) return;
+            dragging = false;
+            Preferences.Set("listWidth", ListWidth);
+            HighlightSplitter(false);
+        }
+
+        element.PointerEntered += (_, _) => HighlightSplitter(true);
+        element.PointerExited += (_, _) =>
+        {
+            if (!dragging) HighlightSplitter(false);
+        };
+        element.PointerPressed += (_, e) =>
+        {
+            dragging = true;
+            // Pozice vůči oknu v DIP, stejné jednotky jako šířka sloupce
+            dragStartX = e.GetCurrentPoint(null).Position.X;
+            dragStartWidth = ListWidth;
+            element.CapturePointer(e.Pointer);
+            HighlightSplitter(true);
+            e.Handled = true;
+        };
+        element.PointerMoved += (_, e) =>
+        {
+            if (!dragging) return;
+            ApplyListWidth(dragStartWidth + e.GetCurrentPoint(null).Position.X - dragStartX);
+            e.Handled = true;
+        };
+        element.PointerReleased += (_, e) =>
+        {
+            element.ReleasePointerCapture(e.Pointer);
+            EndDrag();
+            e.Handled = true;
+        };
+        element.PointerCaptureLost += (_, _) => EndDrag();
+        element.DoubleTapped += (_, e) =>
+        {
+            ApplyListWidth(DefaultListWidth);
+            Preferences.Set("listWidth", ListWidth);
+            e.Handled = true;
+        };
+#endif
     }
 
     TitleBar BuildTitleBar(MainViewModel model)

@@ -11,6 +11,8 @@ public sealed class InverseBoolConverter : IValueConverter
 /// <summary>true, když text není prázdný. Pro chybové a pomocné hlášky.</summary>
 public sealed class HasTextConverter : IValueConverter
 {
-    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => !string.IsNullOrWhiteSpace(value as string);
+    // ConverterParameter=invert vrátí opak (true pro prázdný text)
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        !string.IsNullOrWhiteSpace(value as string) ^ (parameter as string == "invert");
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
 }
