@@ -20,13 +20,17 @@ public partial class App : Application
         };
     }
 
-    protected override Window CreateWindow(IActivationState? activationState) =>
-        new(services.GetRequiredService<MainPage>())
+    protected override Window CreateWindow(IActivationState? activationState)
+    {
+        var page = services.GetRequiredService<MainPage>();
+        return new(page)
         {
             Title = "StartSite",
+            TitleBar = page.AppTitleBar,
             Width = 1360,
             Height = 860,
             MinimumWidth = 760,
             MinimumHeight = 520,
         };
+    }
 }

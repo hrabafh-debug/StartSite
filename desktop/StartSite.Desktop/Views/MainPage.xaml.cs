@@ -9,10 +9,14 @@ public partial class MainPage : ContentPage
     bool started;
     bool keysHooked;
 
+    /// <summary>Vlastní záhlaví okna ve stylu aplikace (logo, hledání, akce u tlačítek okna).</summary>
+    public TitleBar AppTitleBar { get; }
+
     public MainPage(MainViewModel vm)
     {
         InitializeComponent();
         BindingContext = this.vm = vm;
+        AppTitleBar = BuildTitleBar(vm);
         vm.Form.PropertyChanged += OnFormChanged;
         if (Application.Current != null)
             Application.Current.RequestedThemeChanged += (_, _) => vm.RebuildLogColors();
@@ -24,6 +28,23 @@ public partial class MainPage : ContentPage
             await Task.Delay(300);
             SearchEntry.Unfocus();
         };
+    }
+
+    TitleBar BuildTitleBar(MainViewModel model)
+    {
+        // Díly jsou v XAML kvůli stylům a bindingům, tady je jen přesuneme do záhlaví
+        HeaderParts.Children.Clear();
+        var bar = new TitleBar
+        {
+            HeightRequest = 48,
+            BindingContext = model,
+            LeadingContent = HeaderLeading,
+            Content = HeaderSearch,
+            TrailingContent = HeaderTrailing,
+        };
+        bar.SetAppThemeColor(TitleBar.BackgroundColorProperty, Color.FromArgb("#FAFAFA"), Color.FromArgb("#09090B"));
+        bar.SetAppThemeColor(TitleBar.ForegroundColorProperty, Color.FromArgb("#18181B"), Color.FromArgb("#F4F4F5"));
+        return bar;
     }
 
     protected override async void OnAppearing()

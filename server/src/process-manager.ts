@@ -222,6 +222,9 @@ export class ProcessManager {
     }
 
     const port = p.port;
+    // Compose stack spuštěný ručně: převezmeme ho, místo abychom hlásili obsazený port
+    if (await this.adoptExternalCompose(p)) return this.view(p);
+
     const listeners = await listListeners();
     const check = await checkPort(port, listeners);
     if (!check.free) {
@@ -604,6 +607,57 @@ export class ProcessManager {
     this.followDockerLogs(p, args, env);
   }
 
+  /** Převezme compose projekt, který běží mimo StartSite. Vrací true, když ho převzal. */
+  async adoptExternalCompose(p: Project): Promise<boolean> {
+    if (p.kind !== 'compose' || this.isActive(p.id) || this.store.runtime[p.id]) return false;
+    const rec: RuntimeRecord = { kind: 'compose', port: p.port, startedAt: new Date().toISOString() };
+    if (!(await this.dockerRunning(p, rec))) return false;
+
+    // Skutečný port na hostu, stack může běžet s porty z vlastní konfigurace
+    let port = p.port;
+    const file = findComposeFile(p.path);
+    if (file && p.service && p.containerPort) {
+      try {
+        const { stdout } = await run('docker', ['compose', '-f', file, 'port', p.service, String(p.containerPort)], {
+          windowsHide: true,
+          cwd: p.path,
+        });
+        const found = Number(stdout.trim().split(':').pop());
+        if (found > 0) port = found;
+      } catch {
+        // služba nemá publikovaný port, necháme uložený
+      }
+    }
+
+    const log = this.logBuffer(p.id);
+    log.system(`Běží mimo StartSite (spuštěno ručně), převzato. Port ${port}.`);
+    this.setStatus(p.id, {
+      status: 'running',
+      startedAt: rec.startedAt,
+      activePort: port,
+      adopted: true,
+      error: undefined,
+      portOwner: undefined,
+      suggestedPort: undefined,
+      generation: this.state(p.id).generation + 1,
+    });
+    await this.store.setRuntime(p.id, { ...rec, port });
+    this.followDockerLogs(p, ['compose', '-f', file ?? 'compose.yaml', 'logs', '-f', '--tail', '50'], projectEnv(p, port));
+    return true;
+  }
+
+  /** Najde compose projekty spuštěné mimo StartSite. */
+  async adoptAllExternal() {
+    for (const p of this.store.projects) {
+      if (p.kind !== 'compose' || this.isActive(p.id)) continue;
+      try {
+        await this.withLock(p.id, () => this.adoptExternalCompose(p));
+      } catch {
+        // Docker nemusí běžet
+      }
+    }
+  }
+
   private async dockerRunning(p: Project, rec: RuntimeRecord): Promise<boolean> {
     try {
       if (rec.kind === 'compose') {
@@ -628,6 +682,9 @@ export class ProcessManager {
   startWatchdog() {
     this.watchdog = setInterval(() => void this.tick(), 5000);
     this.watchdog.unref();
+    // Compose stacky spuštěné ručně: hned po startu a pak každých 30 s
+    void this.adoptAllExternal();
+    setInterval(() => void this.adoptAllExternal(), 30_000).unref();
   }
 
   private async tick() {

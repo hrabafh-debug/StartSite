@@ -11,35 +11,42 @@
         <c:HasTextConverter x:Key="HasText" />
     </ContentPage.Resources>
 
-    <Grid RowDefinitions="56,Auto,*">
+    <Grid RowDefinitions="1,Auto,*">
 
-        <!-- Hlavička -->
-        <Grid Grid.Row="0" Padding="20,0" ColumnSpacing="12" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto">
-            <Border Grid.Column="0" WidthRequest="24" HeightRequest="24" StrokeThickness="0" StrokeShape="RoundRectangle 6"
-                    BackgroundColor="{AppThemeBinding Light={StaticResource Zinc900}, Dark={StaticResource Zinc100}}" VerticalOptions="Center">
-                <Polygon Points="9,6.5 9,17.5 17.5,12" Fill="{AppThemeBinding Light=#34D399, Dark=#059669}" />
-            </Border>
-            <Label Grid.Column="1" Text="StartSite" FontFamily="{StaticResource SansSemi}" FontSize="15" VerticalOptions="Center" />
-            <Label Grid.Column="2" Text="{Binding Summary}" LineBreakMode="NoWrap" MinimumWidthRequest="80" Style="{StaticResource MonoLabel}" FontSize="12"
-                   TextColor="{AppThemeBinding Light={StaticResource Zinc500}, Dark={StaticResource Zinc400}}" VerticalOptions="Center" />
+        <!-- Díly záhlaví okna. Code-behind je přesune do Window.TitleBar,
+             takže sedí v jednom pruhu s tlačítky okna. -->
+        <Grid x:Name="HeaderParts" IsVisible="False">
+            <HorizontalStackLayout x:Name="HeaderLeading" Spacing="10" Padding="16,0,8,0" VerticalOptions="Center">
+                <Border WidthRequest="22" HeightRequest="22" StrokeThickness="0" StrokeShape="RoundRectangle 6"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource Zinc900}, Dark={StaticResource Zinc100}}" VerticalOptions="Center">
+                    <Polygon Points="8.5,6 8.5,16 16,11" Fill="{AppThemeBinding Light=#34D399, Dark=#059669}" />
+                </Border>
+                <Label Text="StartSite" FontFamily="{StaticResource SansSemi}" FontSize="14" VerticalOptions="Center" />
+                <Label Text="{Binding Summary}" LineBreakMode="NoWrap" MinimumWidthRequest="72" Style="{StaticResource MonoLabel}" FontSize="12"
+                       TextColor="{AppThemeBinding Light={StaticResource Zinc500}, Dark={StaticResource Zinc400}}" VerticalOptions="Center" />
+            </HorizontalStackLayout>
 
-            <Border Grid.Column="3" WidthRequest="300" HorizontalOptions="End" VerticalOptions="Center" Padding="10,0" StrokeShape="RoundRectangle 6"
-                    BackgroundColor="{AppThemeBinding Light=White, Dark={StaticResource Zinc900}}">
+            <Border x:Name="HeaderSearch" WidthRequest="320" HeightRequest="32" HorizontalOptions="Center" VerticalOptions="Center" Padding="10,0"
+                    StrokeShape="RoundRectangle 6" BackgroundColor="{AppThemeBinding Light=White, Dark={StaticResource Zinc900}}">
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
                     <Label Text="&#xe30c;" Style="{StaticResource IconLabel}" FontSize="14" />
-                    <Entry x:Name="SearchEntry" Grid.Column="1" Text="{Binding Search}" Placeholder="Hledat projekt" BackgroundColor="Transparent" MinimumHeightRequest="32" />
+                    <Entry x:Name="SearchEntry" Grid.Column="1" Text="{Binding Search}" Placeholder="Hledat projekt" BackgroundColor="Transparent" MinimumHeightRequest="30" />
                     <Border Grid.Column="2" Padding="5,0" HeightRequest="20" StrokeShape="RoundRectangle 4" VerticalOptions="Center">
                         <Label Text="/" Style="{StaticResource MonoLabel}" FontSize="11" VerticalOptions="Center" />
                     </Border>
                 </Grid>
             </Border>
 
-            <Button Grid.Column="4" Style="{StaticResource IconGhostButton}" Text="{Binding ThemeIcon}" Command="{Binding ToggleThemeCommand}"
-                    ToolTipProperties.Text="{Binding ThemeTooltip}" SemanticProperties.Description="{Binding ThemeTooltip}" />
-            <Button Grid.Column="5" Style="{StaticResource PrimaryButton}" Text="Nový projekt  N" Command="{Binding NewProjectCommand}"
-                    ToolTipProperties.Text="Nový projekt (N)" />
+            <HorizontalStackLayout x:Name="HeaderTrailing" Spacing="8" Padding="0,0,12,0" VerticalOptions="Center">
+                <Button Style="{StaticResource IconGhostButton}" Text="{Binding ThemeIcon}" Command="{Binding ToggleThemeCommand}"
+                        ToolTipProperties.Text="{Binding ThemeTooltip}" SemanticProperties.Description="{Binding ThemeTooltip}" />
+                <Button Style="{StaticResource PrimaryButton}" Text="Nový projekt  N" Command="{Binding NewProjectCommand}"
+                        ToolTipProperties.Text="Nový projekt (N)" />
+            </HorizontalStackLayout>
         </Grid>
-        <BoxView Grid.Row="0" Style="{StaticResource Divider}" VerticalOptions="End" />
+
+        <!-- Linka pod záhlavím okna -->
+        <BoxView Grid.Row="0" Style="{StaticResource Divider}" />
 
         <!-- Výpadek spojení -->
         <Grid Grid.Row="1" IsVisible="{Binding Connected, Converter={StaticResource Not}}" Padding="0,6"
