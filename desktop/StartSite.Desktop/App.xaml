@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="StartSite.Desktop.App">
+    <Application.Resources>
+        <ResourceDictionary>
+            <!-- Paleta: zinc základ, emerald pro "běží", jantarová pro "startuje", červená jen pro chyby -->
+            <Color x:Key="Zinc50">#FAFAFA</Color>
+            <Color x:Key="Zinc100">#F4F4F5</Color>
+            <Color x:Key="Zinc200">#E4E4E7</Color>
+            <Color x:Key="Zinc300">#D4D4D8</Color>
+            <Color x:Key="Zinc400">#A1A1AA</Color>
+            <Color x:Key="Zinc500">#71717A</Color>
+            <Color x:Key="Zinc600">#52525B</Color>
+            <Color x:Key="Zinc700">#3F3F46</Color>
+            <Color x:Key="Zinc800">#27272A</Color>
+            <Color x:Key="Zinc900">#18181B</Color>
+            <Color x:Key="Zinc925">#111113</Color>
+            <Color x:Key="Zinc950">#09090B</Color>
+            <Color x:Key="Emerald500">#10B981</Color>
+            <Color x:Key="Emerald600">#059669</Color>
+            <Color x:Key="Amber500">#F59E0B</Color>
+            <Color x:Key="Red500">#EF4444</Color>
+
+            <x:String x:Key="Sans">GeistRegular</x:String>
+            <x:String x:Key="SansMedium">GeistMedium</x:String>
+            <x:String x:Key="SansSemi">GeistSemiBold</x:String>
+            <x:String x:Key="Mono">GeistMono</x:String>
+            <x:String x:Key="Icon">Phosphor</x:String>
+            <x:String x:Key="IconFill">PhosphorFill</x:String>
+
+            <Style TargetType="Page" ApplyToDerivedTypes="True">
+                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Zinc50}, Dark={StaticResource Zinc950}}" />
+                <Setter Property="Padding" Value="0" />
+            </Style>
+
+            <Style TargetType="Label">
+                <Setter Property="FontFamily" Value="{StaticResource Sans}" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc900}, Dark={StaticResource Zinc100}}" />
+            </Style>
+            <Style x:Key="Muted" TargetType="Label">
+                <Setter Property="FontFamily" Value="{StaticResource Sans}" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc500}, Dark={StaticResource Zinc400}}" />
+            </Style>
+            <Style x:Key="MonoLabel" TargetType="Label">
+                <Setter Property="FontFamily" Value="{StaticResource Mono}" />
+                <Setter Property="FontSize" Value="12.5" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc800}, Dark={StaticResource Zinc200}}" />
+            </Style>
+            <Style x:Key="SectionLabel" TargetType="Label">
+                <Setter Property="FontFamily" Value="{StaticResource SansMedium}" />
+                <Setter Property="FontSize" Value="11" />
+                <Setter Property="CharacterSpacing" Value="1.2" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc500}, Dark={StaticResource Zinc400}}" />
+            </Style>
+            <Style x:Key="FieldLabel" TargetType="Label">
+                <Setter Property="FontFamily" Value="{StaticResource SansMedium}" />
+                <Setter Property="FontSize" Value="12.5" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc700}, Dark={StaticResource Zinc300}}" />
+            </Style>
+            <Style x:Key="ErrorLabel" TargetType="Label">
+                <Setter Property="FontFamily" Value="{StaticResource Sans}" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light=#B91C1C, Dark=#F87171}" />
+            </Style>
+            <Style x:Key="IconLabel" TargetType="Label">
+                <Setter Property="FontFamily" Value="{StaticResource Icon}" />
+                <Setter Property="FontSize" Value="15" />
+                <Setter Property="VerticalOptions" Value="Center" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc500}, Dark={StaticResource Zinc400}}" />
+            </Style>
+
+            <!-- Tlačítka: základ "secondary" s rámečkem -->
+            <Style x:Key="BaseButton" TargetType="Button">
+                <Setter Property="FontFamily" Value="{StaticResource SansMedium}" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="HeightRequest" Value="32" />
+                <Setter Property="MinimumHeightRequest" Value="32" />
+                <Setter Property="Padding" Value="12,0" />
+                <Setter Property="CornerRadius" Value="6" />
+                <Setter Property="BorderWidth" Value="1" />
+                <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource Zinc200}, Dark={StaticResource Zinc800}}" />
+                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark={StaticResource Zinc900}}" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc800}, Dark={StaticResource Zinc200}}" />
+                <Setter Property="VisualStateManager.VisualStateGroups">
+                    <VisualStateGroupList>
+                        <VisualStateGroup x:Name="CommonStates">
+                            <VisualState x:Name="Normal" />
+                            <VisualState x:Name="PointerOver">
+                                <VisualState.Setters>
+                                    <Setter Property="Opacity" Value="0.88" />
+                                </VisualState.Setters>
+                            </VisualState>
+                            <VisualState x:Name="Pressed">
+                                <VisualState.Setters>
+                                    <Setter Property="Scale" Value="0.98" />
+                                </VisualState.Setters>
+                            </VisualState>
+                            <VisualState x:Name="Disabled">
+                                <VisualState.Setters>
+                                    <Setter Property="Opacity" Value="0.45" />
+                                </VisualState.Setters>
+                            </VisualState>
+                        </VisualStateGroup>
+                    </VisualStateGroupList>
+                </Setter>
+            </Style>
+            <Style TargetType="Button" BasedOn="{StaticResource BaseButton}" />
+            <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+                <Setter Property="BorderWidth" Value="0" />
+                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Zinc900}, Dark={StaticResource Zinc100}}" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc50}, Dark={StaticResource Zinc900}}" />
+            </Style>
+            <Style x:Key="RunButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+                <Setter Property="BorderWidth" Value="0" />
+                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Emerald600}, Dark={StaticResource Emerald500}}" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light=White, Dark=#022C22}" />
+            </Style>
+            <Style x:Key="GhostButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+                <Setter Property="BorderWidth" Value="0" />
+                <Setter Property="BackgroundColor" Value="Transparent" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc600}, Dark={StaticResource Zinc400}}" />
+            </Style>
+            <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+                <Setter Property="TextColor" Value="{AppThemeBinding Light=#B91C1C, Dark=#F87171}" />
+            </Style>
+            <!-- Ikonová tlačítka: Phosphor font -->
+            <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+                <Setter Property="FontFamily" Value="{StaticResource Icon}" />
+                <Setter Property="FontSize" Value="15" />
+                <Setter Property="WidthRequest" Value="32" />
+                <Setter Property="Padding" Value="0" />
+            </Style>
+            <Style x:Key="IconGhostButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
+                <Setter Property="BorderWidth" Value="0" />
+                <Setter Property="BackgroundColor" Value="Transparent" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc600}, Dark={StaticResource Zinc400}}" />
+            </Style>
+
+            <Style x:Key="BaseEntry" TargetType="Entry">
+                <Setter Property="FontFamily" Value="{StaticResource Sans}" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="MinimumHeightRequest" Value="34" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc900}, Dark={StaticResource Zinc100}}" />
+                <Setter Property="PlaceholderColor" Value="{AppThemeBinding Light={StaticResource Zinc400}, Dark={StaticResource Zinc600}}" />
+                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark={StaticResource Zinc900}}" />
+            </Style>
+            <Style TargetType="Entry" BasedOn="{StaticResource BaseEntry}" />
+            <Style x:Key="MonoEntry" TargetType="Entry" BasedOn="{StaticResource BaseEntry}">
+                <Setter Property="FontFamily" Value="{StaticResource Mono}" />
+                <Setter Property="FontSize" Value="12.5" />
+            </Style>
+            <Style TargetType="Picker">
+                <Setter Property="FontFamily" Value="{StaticResource Sans}" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc900}, Dark={StaticResource Zinc100}}" />
+                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark={StaticResource Zinc900}}" />
+            </Style>
+            <Style TargetType="Border">
+                <Setter Property="StrokeThickness" Value="1" />
+                <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Zinc200}, Dark={StaticResource Zinc800}}" />
+                <Setter Property="StrokeShape" Value="RoundRectangle 8" />
+            </Style>
+            <Style x:Key="Divider" TargetType="BoxView">
+                <Setter Property="HeightRequest" Value="1" />
+                <Setter Property="Color" Value="{AppThemeBinding Light={StaticResource Zinc200}, Dark={StaticResource Zinc800}}" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

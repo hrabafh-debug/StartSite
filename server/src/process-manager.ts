@@ -67,7 +67,8 @@ function npmPortArgs(p: Project, port: number): string {
 function projectEnv(p: Project, port: number): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
   for (const [k, v] of Object.entries(process.env)) {
-    if (/^npm_/i.test(k) || k === 'INIT_CWD' || k.startsWith('STARTSITE_')) continue;
+    // NO_COLOR by vypnulo barvy, které v logu převádíme na HTML a barevný text
+    if (/^npm_/i.test(k) || k === 'INIT_CWD' || k === 'NO_COLOR' || k.startsWith('STARTSITE_')) continue;
     env[k] = v;
   }
   return { ...env, FORCE_COLOR: '1', ...p.env, PORT: String(port) };

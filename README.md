@@ -2,13 +2,41 @@
 
 Lokální spouštěč webů a aplikací. Projekt (npm, Docker Compose, Dockerfile nebo vlastní příkaz) přidáš cestou ke složce, nastavíš port a spouštíš ho jedním tlačítkem. Dostaneš odkaz `http://localhost:<port>` a živé logy. Stejné projekty ovládá Claude přes MCP server a ty z terminálu přes CLI `startsite`.
 
-![StartSite](docs/screenshot.jpg)
+Hlavní rozhraní je desktopová aplikace pro Windows v .NET MAUI. Stejný stav ukazuje i webové rozhraní na http://localhost:4500.
+
+![StartSite](docs/desktop.png)
 
 ## Požadavky
 
 - Node 20 nebo novější
-- Windows 11 (funguje i na macOS a Linuxu)
+- Windows 11 (backend, MCP a CLI fungují i na macOS a Linuxu)
+- Pro desktopovou aplikaci .NET 10 SDK s MAUI workloadem: `dotnet workload install maui-windows`
 - Docker Desktop, jen pro Docker projekty
+
+## Desktopová aplikace
+
+```bash
+npm run build
+```
+
+```bash
+npm run build:desktop
+```
+
+```bash
+npm run shortcut
+```
+
+`build:desktop` sestaví `desktop/publish/StartSite.exe`, `shortcut` na něj vytvoří zástupce na ploše a v nabídce Start.
+
+- Při spuštění aplikace najde repo (podle umístění `.exe`, nebo proměnné `STARTSITE_ROOT`) a spustí Node backend na pozadí, když neběží. Když backend za běhu spadne, spustí ho znovu.
+- Zavření aplikace projekty ani backend nezastaví, takže je Claude přes MCP dál vidí a ovládá.
+- Běží jen jedna instance; další spuštění přenese do popředí okno, které už běží.
+- Složku projektu jde vybrat systémovým dialogem.
+- Motiv se přepíná ikonou v hlavičce (podle systému, světlý, tmavý).
+- Pády se zapisují do `%LOCALAPPDATA%\StartSite\crash.log`.
+
+Zdrojáky jsou v `desktop/StartSite.Desktop/`: `Services/Backend.cs` (spouštění backendu, HTTP API, SSE), `ViewModels/ViewModels.cs`, `Views/MainPage.xaml`.
 
 ## Instalace
 
@@ -189,6 +217,8 @@ server/   Fastify backend, správa procesů, porty, logy
 mcp/      MCP server (stdio), vstup mcp/index.js
 cli/      příkaz startsite
 web/      Vite + React + Tailwind
+desktop/  desktopová aplikace (.NET MAUI), sestavení v desktop/publish (není v gitu)
+scripts/  install-shortcut.ps1 pro zástupce na ploše a v nabídce Start
 examples/ vite-app, nginx-compose, dockerfile-app na vyzkoušení
 data/     projects.json, runtime.json, server.log (není v gitu)
 ```

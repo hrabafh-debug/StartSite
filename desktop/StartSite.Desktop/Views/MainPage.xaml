@@ -1,0 +1,536 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:StartSite.Desktop.ViewModels"
+             xmlns:c="clr-namespace:StartSite.Desktop.Controls"
+             x:Class="StartSite.Desktop.Views.MainPage"
+             x:DataType="vm:MainViewModel">
+
+    <ContentPage.Resources>
+        <c:InverseBoolConverter x:Key="Not" />
+        <c:HasTextConverter x:Key="HasText" />
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="56,Auto,*">
+
+        <!-- Hlavička -->
+        <Grid Grid.Row="0" Padding="20,0" ColumnSpacing="12" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+            <Border Grid.Column="0" WidthRequest="24" HeightRequest="24" StrokeThickness="0" StrokeShape="RoundRectangle 6"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource Zinc900}, Dark={StaticResource Zinc100}}" VerticalOptions="Center">
+                <Polygon Points="9,6.5 9,17.5 17.5,12" Fill="{AppThemeBinding Light=#34D399, Dark=#059669}" />
+            </Border>
+            <Label Grid.Column="1" Text="StartSite" FontFamily="{StaticResource SansSemi}" FontSize="15" VerticalOptions="Center" />
+            <Label Grid.Column="2" Text="{Binding Summary}" LineBreakMode="NoWrap" MinimumWidthRequest="80" Style="{StaticResource MonoLabel}" FontSize="12"
+                   TextColor="{AppThemeBinding Light={StaticResource Zinc500}, Dark={StaticResource Zinc400}}" VerticalOptions="Center" />
+
+            <Border Grid.Column="3" WidthRequest="300" HorizontalOptions="End" VerticalOptions="Center" Padding="10,0" StrokeShape="RoundRectangle 6"
+                    BackgroundColor="{AppThemeBinding Light=White, Dark={StaticResource Zinc900}}">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                    <Label Text="&#xe30c;" Style="{StaticResource IconLabel}" FontSize="14" />
+                    <Entry x:Name="SearchEntry" Grid.Column="1" Text="{Binding Search}" Placeholder="Hledat projekt" BackgroundColor="Transparent" MinimumHeightRequest="32" />
+                    <Border Grid.Column="2" Padding="5,0" HeightRequest="20" StrokeShape="RoundRectangle 4" VerticalOptions="Center">
+                        <Label Text="/" Style="{StaticResource MonoLabel}" FontSize="11" VerticalOptions="Center" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Button Grid.Column="4" Style="{StaticResource IconGhostButton}" Text="{Binding ThemeIcon}" Command="{Binding ToggleThemeCommand}"
+                    ToolTipProperties.Text="{Binding ThemeTooltip}" SemanticProperties.Description="{Binding ThemeTooltip}" />
+            <Button Grid.Column="5" Style="{StaticResource PrimaryButton}" Text="Nový projekt  N" Command="{Binding NewProjectCommand}"
+                    ToolTipProperties.Text="Nový projekt (N)" />
+        </Grid>
+        <BoxView Grid.Row="0" Style="{StaticResource Divider}" VerticalOptions="End" />
+
+        <!-- Výpadek spojení -->
+        <Grid Grid.Row="1" IsVisible="{Binding Connected, Converter={StaticResource Not}}" Padding="0,6"
+              BackgroundColor="{AppThemeBinding Light={StaticResource Zinc100}, Dark={StaticResource Zinc900}}">
+            <HorizontalStackLayout HorizontalOptions="Center" Spacing="8">
+                <Label Text="&#xe4f2;" Style="{StaticResource IconLabel}" FontSize="13" />
+                <Label Text="Spojení s backendem přerušeno, zkouším znovu." Style="{StaticResource Muted}" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+        </Grid>
+
+        <!-- Hlavní obsah: seznam a detail -->
+        <Grid Grid.Row="2" IsVisible="{Binding ShowMain}" ColumnDefinitions="380,1,*">
+
+            <!-- Seznam projektů -->
+            <Grid Grid.Column="0" RowDefinitions="Auto,*">
+                <Label Text="PROJEKTY" Style="{StaticResource SectionLabel}" Margin="16,16,16,8" />
+
+                <!-- Skeleton při načítání -->
+                <VerticalStackLayout Grid.Row="1" IsVisible="{Binding IsLoading}">
+                    <Grid Padding="16,14" ColumnDefinitions="20,*,40" ColumnSpacing="10">
+                        <BoxView Color="{AppThemeBinding Light={StaticResource Zinc200}, Dark={StaticResource Zinc800}}" WidthRequest="8" HeightRequest="8" CornerRadius="4" />
+                        <BoxView Grid.Column="1" Color="{AppThemeBinding Light={StaticResource Zinc200}, Dark={StaticResource Zinc800}}" HeightRequest="12" WidthRequest="180" HorizontalOptions="Start" CornerRadius="3" />
+                        <BoxView Grid.Column="2" Color="{AppThemeBinding Light={StaticResource Zinc200}, Dark={StaticResource Zinc800}}" HeightRequest="28" CornerRadius="6" />
+                    </Grid>
+                    <Grid Padding="16,14" ColumnDefinitions="20,*,40" ColumnSpacing="10">
+                        <BoxView Color="{AppThemeBinding Light={StaticResource Zinc200}, Dark={StaticResource Zinc800}}" WidthRequest="8" HeightRequest="8" CornerRadius="4" />
+                        <BoxView Grid.Column="1" Color="{AppThemeBinding Light={StaticResource Zinc200}, Dark={StaticResource Zinc800}}" HeightRequest="12" WidthRequest="130" HorizontalOptions="Start" CornerRadius="3" />
+                        <BoxView Grid.Column="2" Color="{AppThemeBinding Light={StaticResource Zinc200}, Dark={StaticResource Zinc800}}" HeightRequest="28" CornerRadius="6" />
+                    </Grid>
+                    <Grid Padding="16,14" ColumnDefinitions="20,*,40" ColumnSpacing="10">
+                        <BoxView Color="{AppThemeBinding Light={StaticResource Zinc200}, Dark={StaticResource Zinc800}}" WidthRequest="8" HeightRequest="8" CornerRadius="4" />
+                        <BoxView Grid.Column="1" Color="{AppThemeBinding Light={StaticResource Zinc200}, Dark={StaticResource Zinc800}}" HeightRequest="12" WidthRequest="210" HorizontalOptions="Start" CornerRadius="3" />
+                        <BoxView Grid.Column="2" Color="{AppThemeBinding Light={StaticResource Zinc200}, Dark={StaticResource Zinc800}}" HeightRequest="28" CornerRadius="6" />
+                    </Grid>
+                </VerticalStackLayout>
+
+                <Label Grid.Row="1" IsVisible="{Binding NoMatches}" Text="Nic neodpovídá hledání." Style="{StaticResource Muted}" Margin="16,8" />
+
+                <CollectionView x:Name="ProjectList" Grid.Row="1" ItemsSource="{Binding Projects}" SelectionMode="Single"
+                                SelectedItem="{Binding Selected, Mode=TwoWay}" IsVisible="{Binding IsLoading, Converter={StaticResource Not}}">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ProjectItem">
+                            <Grid RowDefinitions="*,1">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroupList>
+                                        <VisualStateGroup x:Name="CommonStates">
+                                            <VisualState x:Name="Normal">
+                                                <VisualState.Setters>
+                                                    <Setter Property="BackgroundColor" Value="Transparent" />
+                                                </VisualState.Setters>
+                                            </VisualState>
+                                            <VisualState x:Name="PointerOver">
+                                                <VisualState.Setters>
+                                                    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#80F4F4F5, Dark=#8018181B}" />
+                                                </VisualState.Setters>
+                                            </VisualState>
+                                            <VisualState x:Name="Selected">
+                                                <VisualState.Setters>
+                                                    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Zinc100}, Dark={StaticResource Zinc900}}" />
+                                                </VisualState.Setters>
+                                            </VisualState>
+                                        </VisualStateGroup>
+                                    </VisualStateGroupList>
+                                </VisualStateManager.VisualStateGroups>
+
+                                <Grid Padding="14,10,16,10" ColumnDefinitions="20,*,Auto,32" ColumnSpacing="10">
+                                    <c:StatusDot Status="{Binding Status}" />
+                                    <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                                        <HorizontalStackLayout Spacing="8">
+                                            <Label Text="{Binding Name}" FontFamily="{StaticResource SansMedium}" FontSize="13.5" LineBreakMode="TailTruncation" MaximumWidthRequest="190" />
+                                            <Border Padding="5,0" StrokeShape="RoundRectangle 4" VerticalOptions="Center">
+                                                <Label Text="{Binding KindLabel}" Style="{StaticResource MonoLabel}" FontSize="10.5"
+                                                       TextColor="{AppThemeBinding Light={StaticResource Zinc500}, Dark={StaticResource Zinc400}}" />
+                                            </Border>
+                                        </HorizontalStackLayout>
+                                        <Label Text="{Binding Subtitle}" Style="{StaticResource MonoLabel}" FontSize="11" LineBreakMode="TailTruncation"
+                                               TextColor="{StaticResource Zinc500}">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label" Binding="{Binding IsErrorState}" Value="True">
+                                                    <Setter Property="FontFamily" Value="{StaticResource Sans}" />
+                                                    <Setter Property="TextColor" Value="{AppThemeBinding Light=#B91C1C, Dark=#F87171}" />
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
+                                    </VerticalStackLayout>
+                                    <Label Grid.Column="2" Text="{Binding PortLabel}" Style="{StaticResource MonoLabel}" FontSize="12" VerticalOptions="Center"
+                                           TextColor="{AppThemeBinding Light={StaticResource Zinc500}, Dark={StaticResource Zinc400}}">
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label" Binding="{Binding IsRunning}" Value="True">
+                                                <Setter Property="TextColor" Value="{AppThemeBinding Light=#047857, Dark=#34D399}" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </Label>
+                                    <Button Grid.Column="3" Style="{StaticResource IconButton}" FontFamily="{StaticResource IconFill}" FontSize="13"
+                                            Text="{Binding ToggleIcon}" IsEnabled="{Binding Busy, Converter={StaticResource Not}}"
+                                            ToolTipProperties.Text="{Binding ToggleText}" SemanticProperties.Description="{Binding ToggleText}"
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MainViewModel}}, Path=ToggleCommand, x:DataType=vm:MainViewModel}"
+                                            CommandParameter="{Binding .}" />
+                                </Grid>
+                                <BoxView Grid.Row="1" Style="{StaticResource Divider}" />
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Grid>
+
+            <BoxView Grid.Column="1" WidthRequest="1" Color="{AppThemeBinding Light={StaticResource Zinc200}, Dark={StaticResource Zinc800}}" />
+
+            <!-- Detail vybraného projektu -->
+            <Grid Grid.Column="2" Padding="32,24" RowSpacing="18" RowDefinitions="Auto,Auto,Auto,Auto,*" IsVisible="{Binding HasSelection}">
+
+                <!-- Název, stav, akce -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <VerticalStackLayout Spacing="4">
+                        <HorizontalStackLayout Spacing="10">
+                            <Label Text="{Binding Selected.Name}" FontFamily="{StaticResource SansSemi}" FontSize="20" LineBreakMode="TailTruncation" />
+                            <Border Padding="6,1" StrokeShape="RoundRectangle 4" VerticalOptions="Center">
+                                <Label Text="{Binding Selected.KindLabel}" Style="{StaticResource MonoLabel}" FontSize="11"
+                                       TextColor="{AppThemeBinding Light={StaticResource Zinc500}, Dark={StaticResource Zinc400}}" />
+                            </Border>
+                        </HorizontalStackLayout>
+                        <HorizontalStackLayout Spacing="2">
+                            <c:StatusDot Status="{Binding Selected.Status}" Margin="-6,0,0,0" />
+                            <Label Text="{Binding Selected.StatusLabel}" Style="{StaticResource Muted}" FontSize="13" VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+
+                    <HorizontalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Start">
+                        <Button Style="{StaticResource RunButton}" Text="{Binding Selected.ToggleText, StringFormat='{0}   S'}"
+                                Command="{Binding ToggleCommand}" IsEnabled="{Binding Selected.Busy, Converter={StaticResource Not}}" ToolTipProperties.Text="Zkratka S">
+                            <Button.Triggers>
+                                <DataTrigger TargetType="Button" Binding="{Binding Selected.IsActive}" Value="True">
+                                    <Setter Property="BorderWidth" Value="1" />
+                                    <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource Zinc300}, Dark={StaticResource Zinc700}}" />
+                                    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark={StaticResource Zinc900}}" />
+                                    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc800}, Dark={StaticResource Zinc100}}" />
+                                </DataTrigger>
+                            </Button.Triggers>
+                        </Button>
+                        <Button Text="Restart" Command="{Binding RestartCommand}" IsVisible="{Binding Selected.IsActive}"
+                                IsEnabled="{Binding Selected.Busy, Converter={StaticResource Not}}" />
+                        <Button Text="Upravit" Command="{Binding EditCommand}" />
+                        <Button Style="{StaticResource IconGhostButton}" Text="&#xe4a6;" Command="{Binding DeleteCommand}"
+                                IsVisible="{Binding ConfirmDelete, Converter={StaticResource Not}}" ToolTipProperties.Text="Smazat záznam (soubory zůstanou)" />
+                        <Button Style="{StaticResource DangerButton}" Text="Smazat záznam" Command="{Binding DeleteCommand}" IsVisible="{Binding ConfirmDelete}" />
+                        <Button Style="{StaticResource GhostButton}" Text="Ne" Command="{Binding CancelDeleteCommand}" IsVisible="{Binding ConfirmDelete}" />
+                    </HorizontalStackLayout>
+                </Grid>
+
+                <!-- Chyba u projektu -->
+                <Border Grid.Row="1" IsVisible="{Binding Selected.ShowError}" Padding="16,12"
+                        Stroke="{AppThemeBinding Light=#FECACA, Dark=#5F1D1D}" BackgroundColor="{AppThemeBinding Light=#FEF2F2, Dark=#1F0D0D}">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                        <Label Text="&#xe4e0;" Style="{StaticResource IconLabel}" VerticalOptions="Start" TextColor="{AppThemeBinding Light=#DC2626, Dark=#F87171}" />
+                        <VerticalStackLayout Grid.Column="1" Spacing="10">
+                            <Label Text="{Binding Selected.ErrorMessage}" TextColor="{AppThemeBinding Light=#991B1B, Dark=#FECACA}" LineBreakMode="WordWrap" />
+                            <Button Text="{Binding Selected.SuggestionText}" Command="{Binding StartOnSuggestedCommand}" IsVisible="{Binding Selected.HasSuggestion}"
+                                    HorizontalOptions="Start" HeightRequest="28" FontSize="12" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+
+                <!-- Odkaz -->
+                <Border Grid.Row="2" Padding="16,12" BackgroundColor="{AppThemeBinding Light=White, Dark={StaticResource Zinc925}}">
+                    <Border.Triggers>
+                        <DataTrigger TargetType="Border" Binding="{Binding Selected.IsRunning}" Value="True">
+                            <Setter Property="Stroke" Value="{AppThemeBinding Light=#A7F3D0, Dark=#064E3B}" />
+                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#ECFDF5, Dark=#07211A}" />
+                        </DataTrigger>
+                    </Border.Triggers>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+                            <Label Text="{Binding Selected.Url}" FontFamily="{StaticResource Mono}" FontSize="15"
+                                   TextColor="{AppThemeBinding Light={StaticResource Zinc400}, Dark={StaticResource Zinc600}}">
+                                <Label.Triggers>
+                                    <DataTrigger TargetType="Label" Binding="{Binding Selected.IsRunning}" Value="True">
+                                        <Setter Property="TextColor" Value="{AppThemeBinding Light=#065F46, Dark=#6EE7B7}" />
+                                        <Setter Property="TextDecorations" Value="Underline" />
+                                    </DataTrigger>
+                                </Label.Triggers>
+                                <Label.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding OpenUrlCommand}" />
+                                </Label.GestureRecognizers>
+                            </Label>
+                            <Label Text="{Binding Selected.LinkHint}" Style="{StaticResource Muted}" />
+                        </VerticalStackLayout>
+                        <HorizontalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
+                            <Button Text="Otevřít" Command="{Binding OpenUrlCommand}" IsEnabled="{Binding Selected.IsRunning}" HeightRequest="30" FontSize="12" />
+                            <Button Text="{Binding CopyText}" Command="{Binding CopyUrlCommand}" HeightRequest="30" FontSize="12" />
+                        </HorizontalStackLayout>
+                    </Grid>
+                </Border>
+
+                <!-- Port, proces, příkaz, složka, env -->
+                <Grid Grid.Row="3" ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="32" RowSpacing="14">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Port" Style="{StaticResource Muted}" />
+                        <HorizontalStackLayout Spacing="8">
+                            <Entry Text="{Binding PortText}" Style="{StaticResource MonoEntry}" WidthRequest="96" Keyboard="Numeric" MaxLength="5"
+                                   ReturnCommand="{Binding SavePortCommand}" />
+                            <Button Style="{StaticResource PrimaryButton}" Text="Uložit" Command="{Binding SavePortCommand}" IsVisible="{Binding PortDirty}"
+                                    IsEnabled="{Binding SavingPort, Converter={StaticResource Not}}" VerticalOptions="Center" />
+                            <Button Style="{StaticResource GhostButton}" Text="Najít volný" Command="{Binding FindFreePortCommand}"
+                                    IsVisible="{Binding PortDirty, Converter={StaticResource Not}}" VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                        <Label Text="{Binding PortHint}" IsVisible="{Binding PortHint, Converter={StaticResource HasText}}" Style="{StaticResource Muted}">
+                            <Label.Triggers>
+                                <DataTrigger TargetType="Label" Binding="{Binding PortHintIsError}" Value="True">
+                                    <Setter Property="TextColor" Value="{AppThemeBinding Light=#B91C1C, Dark=#F87171}" />
+                                </DataTrigger>
+                            </Label.Triggers>
+                        </Label>
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Grid.Column="1" Spacing="6">
+                        <Label Text="Proces" Style="{StaticResource Muted}" />
+                        <Label Text="{Binding Selected.ProcessText}" Style="{StaticResource MonoLabel}" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Grid.Row="1" Grid.ColumnSpan="2" Spacing="4">
+                        <Label Text="Příkaz" Style="{StaticResource Muted}" />
+                        <Label Text="{Binding Selected.ResolvedCommand}" Style="{StaticResource MonoLabel}" LineBreakMode="CharacterWrap" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Grid.Row="2" Grid.ColumnSpan="2" Spacing="4">
+                        <Label Text="Složka" Style="{StaticResource Muted}" />
+                        <Label Text="{Binding Selected.Path}" Style="{StaticResource MonoLabel}" LineBreakMode="CharacterWrap"
+                               TextColor="{AppThemeBinding Light={StaticResource Zinc600}, Dark={StaticResource Zinc400}}" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Grid.Row="3" Grid.ColumnSpan="2" Spacing="4">
+                        <Label Text="Proměnné prostředí" Style="{StaticResource Muted}" />
+                        <Label Text="{Binding Selected.EnvEmptyText}" Style="{StaticResource MonoLabel}" IsVisible="{Binding Selected.HasEnv, Converter={StaticResource Not}}"
+                               TextColor="{AppThemeBinding Light={StaticResource Zinc500}, Dark={StaticResource Zinc400}}" />
+                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Selected.EnvEntries}" Spacing="2">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="vm:EnvEntry">
+                                    <Label Style="{StaticResource MonoLabel}" LineBreakMode="CharacterWrap">
+                                        <Label.FormattedText>
+                                            <FormattedString>
+                                                <Span Text="{Binding Key}" TextColor="{StaticResource Zinc500}" />
+                                                <Span Text="=" TextColor="{StaticResource Zinc500}" />
+                                                <Span Text="{Binding Value}" />
+                                            </FormattedString>
+                                        </Label.FormattedText>
+                                    </Label>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Grid>
+
+                <!-- Logy -->
+                <Border Grid.Row="4" Padding="0" BackgroundColor="{AppThemeBinding Light=White, Dark={StaticResource Zinc925}}" MinimumHeightRequest="200">
+                    <Grid RowDefinitions="40,1,*">
+                        <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="10" Padding="12,0">
+                            <Label Text="Logy" FontFamily="{StaticResource SansMedium}" VerticalOptions="Center" />
+                            <Label Grid.Column="1" Text="{Binding Selected.LogCountText}" Style="{StaticResource MonoLabel}" FontSize="11" VerticalOptions="Center"
+                                   TextColor="{StaticResource Zinc500}" />
+                            <Label Grid.Column="3" Text="{Binding Selected.ErrorCountText}" IsVisible="{Binding Selected.HasErrors}" Style="{StaticResource ErrorLabel}"
+                                   VerticalOptions="Center" />
+                            <Button Grid.Column="4" Style="{StaticResource GhostButton}" Text="Vymazat" Command="{Binding ClearLogsCommand}" HeightRequest="28" FontSize="12" />
+                        </Grid>
+                        <BoxView Grid.Row="1" Style="{StaticResource Divider}" />
+                        <Label Grid.Row="2" Text="Zatím žádný výstup. Spusť projekt a logy se objeví tady." Style="{StaticResource Muted}" Margin="12,10"
+                               IsVisible="{Binding Selected.HasNoLogs}" />
+                        <CollectionView Grid.Row="2" ItemsSource="{Binding Selected.Logs}" ItemsUpdatingScrollMode="KeepLastItemInView" Margin="0,6"
+                                        SelectionMode="None">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="vm:LogItem">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" Padding="12,1">
+                                        <Grid.Triggers>
+                                            <DataTrigger TargetType="Grid" Binding="{Binding IsError}" Value="True">
+                                                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#FEF2F2, Dark=#2A1111}" />
+                                            </DataTrigger>
+                                        </Grid.Triggers>
+                                        <Label Text="{Binding Time}" WidthRequest="64" LineBreakMode="NoWrap" FontFamily="{StaticResource Mono}" FontSize="12"
+                                               TextColor="{AppThemeBinding Light={StaticResource Zinc400}, Dark={StaticResource Zinc600}}" />
+                                        <Label Grid.Column="1" FormattedText="{Binding Formatted}" LineBreakMode="CharacterWrap" />
+                                    </Grid>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- Prázdný stav -->
+        <Grid Grid.Row="2" IsVisible="{Binding ShowEmpty}" Padding="48,80" ColumnDefinitions="3*,2*" ColumnSpacing="48">
+            <VerticalStackLayout Spacing="12" MaximumWidthRequest="560" HorizontalOptions="Start">
+                <Label Text="0 projektů" Style="{StaticResource MonoLabel}" FontSize="12" TextColor="{StaticResource Zinc500}" />
+                <Label Text="Přidej první projekt" FontFamily="{StaticResource SansSemi}" FontSize="34" />
+                <Label Text="Vlož cestu ke složce nebo ji vyber. Typ se pozná podle package.json, docker-compose.yml nebo Dockerfile."
+                       Style="{StaticResource Muted}" FontSize="14" LineBreakMode="WordWrap" />
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,12,0,0">
+                    <Entry Text="{Binding EmptyPath}" Style="{StaticResource MonoEntry}" Placeholder="C:\Users\...\muj-web" ReturnCommand="{Binding AddFromEmptyCommand}" />
+                    <Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Text="Pokračovat" Command="{Binding AddFromEmptyCommand}" HeightRequest="36" />
+                </Grid>
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="1" Spacing="8" Padding="32,0,0,0">
+                <Label Text="Ovládání z Claude" FontFamily="{StaticResource SansMedium}" />
+                <Label Text="Po registraci MCP serveru může Claude projekty přidávat, spouštět a číst jejich logy." Style="{StaticResource Muted}" LineBreakMode="WordWrap" />
+                <Border Padding="12,8" BackgroundColor="{AppThemeBinding Light=White, Dark={StaticResource Zinc900}}">
+                    <Label Text="claude mcp add startsite -- node &lt;cesta&gt;/mcp/index.js" Style="{StaticResource MonoLabel}" FontSize="12" LineBreakMode="CharacterWrap" />
+                </Border>
+            </VerticalStackLayout>
+        </Grid>
+
+        <!-- Backend nejde spustit -->
+        <VerticalStackLayout Grid.Row="2" IsVisible="{Binding HasLoadError}" Padding="48,64" Spacing="12" MaximumWidthRequest="640" HorizontalOptions="Start">
+            <Border Padding="18,14" Stroke="{AppThemeBinding Light=#FECACA, Dark=#5F1D1D}" BackgroundColor="{AppThemeBinding Light=#FEF2F2, Dark=#1F0D0D}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Backend neodpovídá" FontFamily="{StaticResource SansMedium}" TextColor="{AppThemeBinding Light=#991B1B, Dark=#FECACA}" />
+                    <Label Text="{Binding LoadError}" Style="{StaticResource MonoLabel}" FontSize="12" TextColor="{AppThemeBinding Light=#B91C1C, Dark=#FCA5A5}" LineBreakMode="WordWrap" />
+                    <Button Text="Zkusit znovu" Command="{Binding RetryCommand}" HorizontalOptions="Start" />
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+
+        <!-- Formulář nového projektu a úprav -->
+        <Grid x:Name="FormOverlay" Grid.RowSpan="3" IsVisible="{Binding Form.IsOpen}">
+            <BoxView Color="{AppThemeBinding Light=#4D09090B, Dark=#9909090B}">
+                <BoxView.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding Form.CloseCommand}" />
+                </BoxView.GestureRecognizers>
+            </BoxView>
+            <Border x:Name="FormPanel" WidthRequest="540" HorizontalOptions="End" StrokeShape="Rectangle" Padding="0"
+                    BindingContext="{Binding Form}" x:DataType="vm:ProjectFormViewModel"
+                    BackgroundColor="{AppThemeBinding Light=White, Dark={StaticResource Zinc950}}">
+                <Grid RowDefinitions="56,1,*,1,Auto">
+                    <Grid ColumnDefinitions="*,Auto" Padding="20,0">
+                        <Label Text="{Binding Title}" FontFamily="{StaticResource SansSemi}" FontSize="15" VerticalOptions="Center" />
+                        <Button Grid.Column="1" Style="{StaticResource IconGhostButton}" Text="&#xe4f6;" Command="{Binding CloseCommand}" ToolTipProperties.Text="Zavřít (Esc)" />
+                    </Grid>
+                    <BoxView Grid.Row="1" Style="{StaticResource Divider}" />
+
+                    <ScrollView Grid.Row="2">
+                        <VerticalStackLayout Padding="20" Spacing="20">
+
+                            <!-- Složka -->
+                            <VerticalStackLayout Spacing="6">
+                                <Label Text="Složka projektu" Style="{StaticResource FieldLabel}" />
+                                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                                    <Entry x:Name="PathEntry" Text="{Binding Path}" Style="{StaticResource MonoEntry}" Placeholder="C:\Users\...\muj-web"
+                                           ReturnCommand="{Binding DetectPathCommand}" />
+                                    <Button Grid.Column="1" Style="{StaticResource IconButton}" Text="&#xe256;" Command="{Binding PickFolderCommand}" ToolTipProperties.Text="Vybrat složku" VerticalOptions="Center" />
+                                    <Button Grid.Column="2" Style="{StaticResource IconButton}" Text="&#xe30c;" Command="{Binding DetectPathCommand}" ToolTipProperties.Text="Načíst složku" VerticalOptions="Center" />
+                                </Grid>
+                                <Label Text="{Binding PathError}" IsVisible="{Binding PathError, Converter={StaticResource HasText}}" Style="{StaticResource ErrorLabel}" />
+                                <Label Text="{Binding PathHint}" IsVisible="{Binding PathHint, Converter={StaticResource HasText}}" Style="{StaticResource Muted}" />
+                            </VerticalStackLayout>
+
+                            <!-- Název -->
+                            <VerticalStackLayout Spacing="6">
+                                <Label Text="Název" Style="{StaticResource FieldLabel}" />
+                                <Entry Text="{Binding Name}" />
+                                <Label Text="{Binding NameError}" IsVisible="{Binding NameError, Converter={StaticResource HasText}}" Style="{StaticResource ErrorLabel}" />
+                            </VerticalStackLayout>
+
+                            <!-- Typ -->
+                            <VerticalStackLayout Spacing="6">
+                                <Label Text="Typ" Style="{StaticResource FieldLabel}" />
+                                <Border Padding="4" StrokeThickness="0" BackgroundColor="{AppThemeBinding Light={StaticResource Zinc100}, Dark={StaticResource Zinc900}}">
+                                    <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="4">
+                                        <Button Grid.Column="0" Text="npm" Command="{Binding SelectKindCommand}" CommandParameter="npm" Style="{StaticResource GhostButton}">
+                                            <Button.Triggers>
+                                                <DataTrigger TargetType="Button" Binding="{Binding Kind}" Value="npm">
+                                                    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark={StaticResource Zinc800}}" />
+                                                    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc900}, Dark={StaticResource Zinc50}}" />
+                                                </DataTrigger>
+                                            </Button.Triggers>
+                                        </Button>
+                                        <Button Grid.Column="1" Text="compose" Command="{Binding SelectKindCommand}" CommandParameter="compose" Style="{StaticResource GhostButton}">
+                                            <Button.Triggers>
+                                                <DataTrigger TargetType="Button" Binding="{Binding Kind}" Value="compose">
+                                                    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark={StaticResource Zinc800}}" />
+                                                    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc900}, Dark={StaticResource Zinc50}}" />
+                                                </DataTrigger>
+                                            </Button.Triggers>
+                                        </Button>
+                                        <Button Grid.Column="2" Text="docker" Command="{Binding SelectKindCommand}" CommandParameter="dockerfile" Style="{StaticResource GhostButton}">
+                                            <Button.Triggers>
+                                                <DataTrigger TargetType="Button" Binding="{Binding Kind}" Value="dockerfile">
+                                                    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark={StaticResource Zinc800}}" />
+                                                    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc900}, Dark={StaticResource Zinc50}}" />
+                                                </DataTrigger>
+                                            </Button.Triggers>
+                                        </Button>
+                                        <Button Grid.Column="3" Text="příkaz" Command="{Binding SelectKindCommand}" CommandParameter="custom" Style="{StaticResource GhostButton}">
+                                            <Button.Triggers>
+                                                <DataTrigger TargetType="Button" Binding="{Binding Kind}" Value="custom">
+                                                    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark={StaticResource Zinc800}}" />
+                                                    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc900}, Dark={StaticResource Zinc50}}" />
+                                                </DataTrigger>
+                                            </Button.Triggers>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </VerticalStackLayout>
+
+                            <!-- npm -->
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="16" RowDefinitions="Auto,Auto" RowSpacing="6" IsVisible="{Binding IsNpm}">
+                                <VerticalStackLayout Spacing="6">
+                                    <Label Text="Skript" Style="{StaticResource FieldLabel}" />
+                                    <Picker ItemsSource="{Binding Scripts}" SelectedItem="{Binding Script}" IsVisible="{Binding HasScripts}" />
+                                    <Entry Text="{Binding Script}" Style="{StaticResource MonoEntry}" Placeholder="dev" IsVisible="{Binding HasScripts, Converter={StaticResource Not}}" />
+                                    <Label Text="{Binding ScriptError}" IsVisible="{Binding ScriptError, Converter={StaticResource HasText}}" Style="{StaticResource ErrorLabel}" />
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Grid.Column="1" Spacing="6">
+                                    <Label Text="Framework" Style="{StaticResource FieldLabel}" />
+                                    <Picker ItemsSource="{Binding FrameworkLabels}" SelectedIndex="{Binding FrameworkIndex}" />
+                                    <Label Text="Určuje, jak se předá port." Style="{StaticResource Muted}" />
+                                </VerticalStackLayout>
+                                <Label Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding ScriptPreview}" Style="{StaticResource MonoLabel}" FontSize="11.5"
+                                       TextColor="{StaticResource Zinc500}" LineBreakMode="CharacterWrap" />
+                            </Grid>
+
+                            <!-- Vlastní příkaz -->
+                            <VerticalStackLayout Spacing="6" IsVisible="{Binding IsCustom}">
+                                <Label Text="Příkaz" Style="{StaticResource FieldLabel}" />
+                                <Entry Text="{Binding Command}" Style="{StaticResource MonoEntry}" Placeholder="python -m http.server {port}" />
+                                <Label Text="{Binding CommandError}" IsVisible="{Binding CommandError, Converter={StaticResource HasText}}" Style="{StaticResource ErrorLabel}" />
+                                <Label Text="Spustí se v shellu ve složce projektu. {port} se nahradí portem, env PORT je nastavené vždy." Style="{StaticResource Muted}" LineBreakMode="WordWrap" />
+                            </VerticalStackLayout>
+
+                            <!-- Porty -->
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                                <VerticalStackLayout Spacing="6">
+                                    <Label Text="Port" Style="{StaticResource FieldLabel}" />
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <Entry Text="{Binding Port}" Style="{StaticResource MonoEntry}" Keyboard="Numeric" MaxLength="5" />
+                                        <Button Grid.Column="1" Text="Volný" Command="{Binding FindFreeCommand}" VerticalOptions="Center" />
+                                    </Grid>
+                                    <Label Text="{Binding PortError}" IsVisible="{Binding PortError, Converter={StaticResource HasText}}" Style="{StaticResource ErrorLabel}" />
+                                    <Label Text="{Binding PortHint}" IsVisible="{Binding PortHint, Converter={StaticResource HasText}}" Style="{StaticResource Muted}">
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label" Binding="{Binding PortHintIsError}" Value="True">
+                                                <Setter Property="TextColor" Value="{AppThemeBinding Light=#B91C1C, Dark=#F87171}" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </Label>
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Grid.Column="1" Spacing="6" IsVisible="{Binding IsDocker}">
+                                    <Label Text="Port v kontejneru" Style="{StaticResource FieldLabel}" />
+                                    <Entry Text="{Binding ContainerPort}" Style="{StaticResource MonoEntry}" Keyboard="Numeric" MaxLength="5" Placeholder="80" />
+                                    <Label Text="{Binding ContainerPortError}" IsVisible="{Binding ContainerPortError, Converter={StaticResource HasText}}" Style="{StaticResource ErrorLabel}" />
+                                    <Label Text="{Binding ContainerPortHint}" Style="{StaticResource Muted}" />
+                                </VerticalStackLayout>
+                            </Grid>
+
+                            <VerticalStackLayout Spacing="6" IsVisible="{Binding IsComposeMulti}">
+                                <Label Text="Služba s webem" Style="{StaticResource FieldLabel}" />
+                                <Picker ItemsSource="{Binding Services}" SelectedItem="{Binding Service}" />
+                                <Label Text="Na tuhle službu se namapuje port." Style="{StaticResource Muted}" />
+                            </VerticalStackLayout>
+
+                            <!-- Env -->
+                            <VerticalStackLayout Spacing="8">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label Text="Proměnné prostředí" Style="{StaticResource FieldLabel}" VerticalOptions="Center" />
+                                    <Button Grid.Column="1" Style="{StaticResource GhostButton}" Text="Přidat" Command="{Binding AddEnvCommand}" />
+                                </Grid>
+                                <Label Text="Volitelné. PORT se nastaví vždy." Style="{StaticResource Muted}" />
+                                <VerticalStackLayout BindableLayout.ItemsSource="{Binding EnvRows}" Spacing="8">
+                                    <BindableLayout.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:EnvRow">
+                                            <Grid ColumnDefinitions="2*,3*,Auto" ColumnSpacing="8">
+                                                <Entry Text="{Binding Key}" Style="{StaticResource MonoEntry}" Placeholder="NAZEV" />
+                                                <Entry Grid.Column="1" Text="{Binding Value}" Style="{StaticResource MonoEntry}" Placeholder="hodnota" />
+                                                <Button Grid.Column="2" Style="{StaticResource IconGhostButton}" Text="&#xe4f6;" ToolTipProperties.Text="Odebrat"
+                                                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:ProjectFormViewModel}}, Path=RemoveEnvCommand, x:DataType=vm:ProjectFormViewModel}"
+                                                        CommandParameter="{Binding .}" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </BindableLayout.ItemTemplate>
+                                </VerticalStackLayout>
+                                <Label Text="{Binding EnvError}" IsVisible="{Binding EnvError, Converter={StaticResource HasText}}" Style="{StaticResource ErrorLabel}" />
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                    </ScrollView>
+
+                    <BoxView Grid.Row="3" Style="{StaticResource Divider}" />
+                    <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Padding="20,14">
+                        <Label Text="{Binding FormError}" Style="{StaticResource ErrorLabel}" VerticalOptions="Center" LineBreakMode="WordWrap" />
+                        <Button Grid.Column="1" Style="{StaticResource GhostButton}" Text="Zrušit" Command="{Binding CloseCommand}" />
+                        <Button Grid.Column="2" Style="{StaticResource PrimaryButton}" Text="{Binding SaveText}" Command="{Binding SaveCommand}"
+                                IsEnabled="{Binding Saving, Converter={StaticResource Not}}" />
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</ContentPage>
