@@ -1,19 +1,43 @@
 # StartSite
 
-A local launcher for your web projects and apps. Add a project by pointing it at a folder (npm, Docker Compose, Dockerfile or a custom command), pick a port, and start it with one click. You get a `http://localhost:<port>` link and live logs. Claude controls the same projects through an MCP server, and you can drive them from the terminal with the `startsite` CLI.
+**Start, stop and monitor all your local web projects from one window, and let Claude do it for you.**
 
-The main interface is a Windows desktop app built with .NET MAUI. A web UI at http://localhost:4500 shows the same state. The UI text is in Czech.
+StartSite is a launcher for local development projects. Point it at a folder and it works out how to run it: an npm script, a Docker Compose stack, a Dockerfile or any shell command. You choose the port, press Start, and get a working `http://localhost:<port>` link with live logs. When you press Stop, the whole process tree goes away and the port is free again.
 
-![StartSite](docs/desktop.png)
+The same projects are available to [Claude Code](https://docs.anthropic.com/en/docs/claude-code) through a built-in MCP server and to your terminal through the `startsite` CLI. Everyone sees the same state.
+
+![StartSite desktop app](docs/desktop.png)
+
+## Features
+
+- **One click to run anything.** npm projects, Docker Compose stacks, plain Dockerfiles and custom commands.
+- **Automatic detection.** Reads `package.json`, `docker-compose.yml` / `compose.yaml` and `Dockerfile`, picks the right script, framework and container port.
+- **Port management.** Set a port yourself or let StartSite find a free one. Before starting, it checks the port and tells you exactly which process (name and PID) is holding it, with a free alternative one click away.
+- **Real health checks.** A project is shown as running only when its port actually accepts connections, not just when the process has spawned.
+- **Clean shutdown.** Stops the entire process tree on Windows, so no orphaned `node` processes keep your ports busy. Docker projects are stopped with `docker compose down` or `docker stop`.
+- **Live logs.** stdout and stderr streamed in real time with ANSI colors and highlighted errors.
+- **Survives restarts.** Projects keep running when you close StartSite and are picked up again on the next launch. Compose stacks you started by hand are detected and adopted.
+- **Built for Claude.** An MCP server lets Claude list, add, start, stop and restart projects, read their logs and get their URLs.
+- **Native desktop app** for Windows, plus a web UI and a CLI.
 
 ## Requirements
 
-- Node 20 or newer
-- Windows 11 (the backend, MCP server and CLI also run on macOS and Linux)
-- For the desktop app: .NET 10 SDK with the MAUI workload (`dotnet workload install maui-windows`)
-- Docker Desktop, only for Docker projects
+| Component | Needed for |
+| --- | --- |
+| [Node.js](https://nodejs.org) 20 or newer | everything |
+| Windows 10/11 | the desktop app (the backend, MCP server, CLI and web UI also run on macOS and Linux) |
+| [.NET 10 SDK](https://dotnet.microsoft.com) with the MAUI workload | building the desktop app |
+| [Docker Desktop](https://www.docker.com/products/docker-desktop/) with Compose 2.24+ | Docker projects only |
 
-## Installation
+## Quick start
+
+```bash
+git clone https://github.com/hrabafh-debug/StartSite.git
+```
+
+```bash
+cd StartSite
+```
 
 ```bash
 npm install
@@ -23,9 +47,17 @@ npm install
 npm run build
 ```
 
-`npm run build` builds the shared types, backend, MCP server, CLI and web UI. The MCP server and CLI need this build to run.
+Then pick how you want to use it.
 
-## Desktop app
+### Desktop app (Windows)
+
+Install the MAUI workload once:
+
+```bash
+dotnet workload install maui-windows
+```
+
+Build the app and create shortcuts on the desktop and in the Start menu:
 
 ```bash
 npm run build:desktop
@@ -35,198 +67,205 @@ npm run build:desktop
 npm run shortcut
 ```
 
-`build:desktop` produces `desktop/publish/StartSite.exe`. `shortcut` creates shortcuts to it on the desktop and in the Start menu.
+Launch **StartSite** from the desktop. The app starts the backend for you.
 
-- On launch, the app locates the repo (from the location of the `.exe`, or the `STARTSITE_ROOT` environment variable) and starts the Node backend in the background if it is not running. If the backend dies later, the app starts it again.
-- Closing the app does not stop the backend or your projects, so Claude can keep using them through MCP.
-- Only one instance runs at a time. Launching it again brings the existing window to the front.
-- You can pick a project folder with the system folder dialog.
-- The header icon switches the theme: system, light, dark.
-- Crashes are written to `%LOCALAPPDATA%\StartSite\crash.log`.
-
-Source lives in `desktop/StartSite.Desktop/`: `Services/Backend.cs` (backend startup, HTTP API, SSE), `ViewModels/ViewModels.cs`, `Views/MainPage.xaml`.
-
-## Running the backend and web UI
+### Web UI
 
 ```bash
 npm start
 ```
 
-Open http://localhost:4500. The backend listens on `127.0.0.1` only and also serves the web UI.
+Open http://localhost:4500.
 
-To use another port, pass `--port` or set `STARTSITE_PORT`:
+## Using StartSite
+
+### Adding a project
+
+Click **Nový projekt** (New project) or press `N`, then paste a folder path or pick one with the folder dialog. StartSite detects the project type and fills in the name, script, framework and a free port. You can add environment variables before saving.
+
+| Folder contains | Type | How it starts | How it stops |
+| --- | --- | --- | --- |
+| `package.json` | npm | `npm run <script>` (defaults to `dev`) | kills the whole process tree |
+| `compose.yaml` / `docker-compose.yml` | compose | `docker compose up -d` | `docker compose down` |
+| `Dockerfile` without compose | docker | `docker build` + `docker run -p` | `docker stop` |
+| anything else | custom | your shell command; `{port}` is replaced with the port | kills the whole process tree |
+
+Removing a project only removes it from StartSite. Your files are never touched.
+
+### Ports
+
+StartSite always sets the `PORT` environment variable, and passes the port the way each framework expects:
+
+| Framework | Arguments |
+| --- | --- |
+| Vite, Astro, SvelteKit | `-- --port <port> --strictPort` |
+| Next.js | `-- -p <port>` |
+| Docker Compose | the selected service is mapped to `<port>:<containerPort>` |
+| Dockerfile | `-p <port>:<containerPort>` (container port from `EXPOSE`) |
+
+If the port is taken, StartSite shows the process holding it and offers to start on the next free port.
+
+### Keyboard shortcuts
+
+| Key | Action |
+| --- | --- |
+| `/` | search projects |
+| `N` | new project |
+| `S` | start or stop the selected project |
+| `↑` `↓` | select a project |
+| `Esc` | close the form or clear the search |
+
+## Using StartSite with Claude
+
+Register the MCP server with Claude Code:
 
 ```bash
-npm start -- --port 4700
+claude mcp add startsite -- node <path-to-StartSite>/mcp/index.js
 ```
 
-The MCP server and CLI read the port only from `STARTSITE_PORT`, so set it for them too.
-
-Development with hot reload (backend via `tsx watch`, web UI via Vite on port 4501 with an `/api` proxy):
-
-```bash
-npm run dev
-```
-
-## Registering the MCP server with Claude Code
-
-```bash
-claude mcp add startsite -- node <path-to-repo>/mcp/index.js
-```
-
-Check the connection:
+Verify it:
 
 ```bash
 claude mcp get startsite
 ```
 
-It should report `Status: Connected`. If the backend is not running, the MCP server starts it in the background (output goes to `data/server.log`), so the UI and Claude always share the same state.
+Now you can ask Claude things like *"start my blog and give me the link"* or *"why does the shop project fail to start? check the logs"*.
 
-| Tool | What it does |
+| Tool | Description |
 | --- | --- |
-| `list_projects` | lists projects with status, port and URL |
-| `get_project` | project details including environment variables |
-| `add_project` | adds a folder; detects the type and script, picks a free port if none is given |
-| `update_project` | changes name, port, command, env and so on |
-| `remove_project` | removes the entry; files on disk stay untouched |
-| `start_project` | starts the project and waits until the port responds; if the port is taken, returns who holds it and a free port |
-| `stop_project` | stops the whole process tree or the containers |
-| `restart_project` | stop, then start |
-| `get_logs` | last N lines (`lines` parameter, default 100), without ANSI colors |
-| `find_free_port` | a port not used by the system or another project |
+| `list_projects` | all projects with status, port and URL |
+| `get_project` | details of one project, including environment variables |
+| `add_project` | add a folder; type and script are detected, a free port is chosen if none is given |
+| `update_project` | change name, port, command, environment variables and more |
+| `remove_project` | remove a project from StartSite (files stay on disk) |
+| `start_project` | start and wait until the port responds; on a port conflict, returns the owner and a free port |
+| `stop_project` | stop the project and free its port |
+| `restart_project` | stop and start again |
+| `get_logs` | the last N lines of output (default 100), without ANSI codes |
+| `find_free_port` | a port not used by the system or by another project |
 
-Every tool returns the status and URL. Projects can be referenced by name or ID, case-insensitively (`Demo Vite`, `demo-vite`, `DEMO-VITE`).
+Projects can be referenced by name or ID, case-insensitively. If the backend is not running, the MCP server starts it.
 
-## CLI
+## Command-line interface
 
-From the repo, via `npx`:
+Run it from the repository with `npx`:
 
 ```bash
 npx startsite list
 ```
 
-Globally (once, from the repo root):
+Or install the command globally:
 
 ```bash
 npm link
 ```
 
-Examples:
-
 ```bash
-startsite list
-startsite add C:/projects/my-site --port 5180
-startsite start "Demo Vite"
-startsite start demo-vite --port 5181
-startsite logs demo-vite -n 50
-startsite logs demo-vite -f
-startsite restart demo-vite
-startsite stop demo-vite
-startsite port 5200
+startsite list                          # all projects with status and URL
+startsite add ./my-site --port 5180     # add a project
+startsite start "My Site"               # start and wait for the port
+startsite start my-site --port 5181     # start on another port
+startsite logs my-site -n 50            # last 50 lines
+startsite logs my-site -f               # follow logs live
+startsite restart my-site
+startsite stop my-site
+startsite port 5200                     # find a free port from 5200
 ```
 
-`start` and `restart` wait until the port responds and exit with a non-zero code if it never does. When the port is taken, they print the PID and process name and suggest a free port.
+`start` and `restart` exit with a non-zero code if the project does not come up, so they work in scripts.
+
+## Configuration
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `STARTSITE_PORT` | `4500` | port of the backend (used by the backend, desktop app, MCP server and CLI) |
+| `STARTSITE_DATA` | `<repo>/data` | where projects, runtime state and logs are stored |
+| `STARTSITE_ROOT` | location of the app | repository path for the desktop app, if the `.exe` is moved elsewhere |
+| `STARTSITE_LOG` | `warn` | backend log level (`info`, `debug`, ...) |
+
+The backend can also be started on another port with `npm start -- --port 4700`.
 
 ## How it works
 
-### Project types
+StartSite is a small Node.js backend (Fastify) that owns all processes. The desktop app, the web UI, the CLI and the MCP server are thin clients of its HTTP API, which is why they always agree on what is running.
 
-| Folder contains | Type | Start | Stop |
-| --- | --- | --- | --- |
-| `package.json` | npm | `npm run <script>`, `dev` by default | `taskkill /T /F` on the whole tree |
-| `compose.yaml` / `docker-compose.yml` | compose | `docker compose up -d` | `docker compose down` |
-| `Dockerfile` without compose | docker | `docker build` + `docker run -d --rm -p` | `docker stop` |
-| anything else | custom | your shell command, `{port}` is substituted | `taskkill /T /F` |
+- **Health checks.** After starting, StartSite probes the port on `127.0.0.1` and `::1` until it accepts a TCP connection. Projects that do not respond within 3 minutes (5 for Docker) are stopped and marked as failed.
+- **Process cleanup.** Stopping kills the whole process tree (`taskkill /T /F` on Windows, process groups elsewhere). Anything still listening on the project's port afterwards is stopped too, because the port was verified as free before the start.
+- **Restarts.** PIDs, ports and containers of running projects are stored in `data/runtime.json`. On startup, StartSite checks them against reality, adopts what is still running and drops stale entries.
+- **Docker Compose.** Stacks run under their default project name, so StartSite uses the same containers and volumes as running `docker compose` yourself. Ports are overridden with a generated file in `data/compose/`; your compose files are never modified.
+- **Storage.** Projects are stored in `data/projects.json` with atomic writes. A JSON file was chosen over SQLite because the data set is small, it is easy to back up and edit, and it avoids native modules that need build tools on Windows.
+- **Logs.** The last 2000 lines per project are kept in memory and streamed to clients over Server-Sent Events.
 
-### Passing the port
+<details>
+<summary><strong>HTTP API reference</strong></summary>
 
-- The `PORT` environment variable is always set.
-- Vite, Astro, SvelteKit: `npm run dev -- --port <port> --strictPort`.
-- Next.js: `npm run dev -- -p <port>`.
-- The framework is detected from `dependencies` and `devDependencies` in `package.json`.
-- Compose: StartSite writes `data/compose/<id>.override.yml`, which replaces the ports of the chosen service with `<port>:<containerPort>` (`ports: !override`, requires Compose 2.24+). The container port is read from the compose file. StartSite runs compose with its default project name (the `name:` field or the folder name), so it uses the same containers and volumes (databases) as running `docker compose` by hand.
-- Dockerfile: `-p <port>:<containerPort>`, with the container port read from `EXPOSE`. If there is none, the form asks for it.
-
-### States
-
-`stopped`, `starting`, `running`, `error`. A project counts as running only once its port accepts a TCP connection. Both `127.0.0.1` and `::1` are probed, because Vite often listens on IPv6 only. If the port does not respond within 3 minutes (5 for Docker), the project is stopped and marked as an error.
-
-Before starting, StartSite checks that the port is free (`netstat -ano` plus a test bind). If it is not, it reports the PID and process name (`tasklist`) and suggests a free port.
-
-### Process cleanup
-
-- Stop kills the whole process tree (`taskkill /PID <pid> /T /F`). If something still listens on the port afterwards, it is killed too: the port was free before the start, so it belongs to the project.
-- PIDs, ports and container names of running projects are stored in `data/runtime.json`. After a StartSite restart, the real state is checked against them: running processes and containers are adopted (and can be stopped), stale entries are removed.
-- Shutting down StartSite leaves your projects running.
-
-### Storage: JSON, not SQLite
-
-Projects live in `data/projects.json` and are written atomically (temp file plus `rename`, writes are serialized). JSON because:
-
-- there will be dozens of projects, not thousands, and the whole list fits in memory,
-- `better-sqlite3` is a native module, and on Windows with a recent Node a prebuilt binary is often missing, so `npm install` needs Visual Studio Build Tools,
-- the file is easy to read, edit by hand and back up.
-
-### Logs
-
-Each project keeps its last 2000 lines of stdout and stderr in memory. The UIs receive them live over Server-Sent Events (`/api/events`), render ANSI colors and highlight error lines. The CLI and MCP get plain text without ANSI codes.
-
-## HTTP API
-
-Everything is served at `http://127.0.0.1:4500`. `:ref` is a project ID or name.
+All endpoints are served at `http://127.0.0.1:4500`. `:ref` is a project ID or name.
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/api/health` | backend health check |
+| GET | `/api/health` | health check |
 | GET | `/api/projects` | list projects |
 | POST | `/api/projects` | add `{ path, name?, kind?, script?, command?, port?, containerPort?, service?, env? }` |
 | GET | `/api/projects/:ref` | project details |
-| PATCH | `/api/projects/:ref` | update |
-| DELETE | `/api/projects/:ref` | remove the entry |
+| PATCH | `/api/projects/:ref` | update a project |
+| DELETE | `/api/projects/:ref` | remove a project |
 | POST | `/api/projects/:ref/start` | start, body `{ port?, wait? }`; a taken port returns `409` with `owner` and `suggestedPort` |
 | POST | `/api/projects/:ref/stop` | stop |
 | POST | `/api/projects/:ref/restart` | restart |
-| GET | `/api/projects/:ref/logs?limit=100&plain=1` | logs |
+| GET | `/api/projects/:ref/logs?limit=100&plain=1` | read logs |
 | DELETE | `/api/projects/:ref/logs` | clear logs |
-| POST | `/api/detect` | detect a folder `{ path }` |
+| POST | `/api/detect` | detect a folder, body `{ path }` |
 | GET | `/api/ports/free?start=5100` | find a free port |
-| GET | `/api/ports/:port` | who holds a port |
-| GET | `/api/events` | SSE stream of states and logs |
+| GET | `/api/ports/:port` | who is using a port |
+| GET | `/api/events` | Server-Sent Events stream of project states and log lines |
 
-The API rejects requests whose `Host` or `Origin` is not localhost, so a website open in your browser cannot run commands through it.
+</details>
 
-## Keyboard shortcuts
+## Security
 
-| Key | Action |
-| --- | --- |
-| `/` | search |
-| `N` | new project |
-| `S` | start or stop the selected project |
-| arrows | select a project |
-| `Esc` | close the form or clear the search |
+StartSite runs commands on your machine, so it is locked down to local use:
 
-## Repository layout
+- The backend listens on `127.0.0.1` only.
+- Requests with a `Host` or `Origin` other than localhost are rejected, so a website open in your browser cannot use the API (including through DNS rebinding).
+- There is no authentication. Do not expose the port to a network.
 
-```
-shared/   types and HTTP client (starts the backend if it is not running)
-server/   Fastify backend: process management, ports, logs
-mcp/      MCP server (stdio), entry point mcp/index.js
-cli/      the startsite command
-web/      Vite + React + Tailwind web UI
-desktop/  .NET MAUI desktop app, build output in desktop/publish (not in git)
-scripts/  install-shortcut.ps1 for desktop and Start menu shortcuts
-examples/ vite-app, nginx-compose, dockerfile-app to try things out
-data/     projects.json, runtime.json, server.log (not in git)
-```
+## Troubleshooting
 
-## Examples
+**The port is in use.** StartSite shows which process holds it. Stop that process or click the suggested free port.
 
-`examples/vite-app` needs `npm install` once in its folder. The Docker examples need Docker running.
+**The backend does not start.** Check `data/server.log`. Make sure `npm run build` has been run and that nothing else uses port 4500 (or set `STARTSITE_PORT`).
+
+**The desktop app closes right after launch.** See `%LOCALAPPDATA%\StartSite\crash.log`.
+
+**Docker projects fail with "Docker neběží".** Start Docker Desktop. Port overrides need Docker Compose 2.24 or newer.
+
+**A Vite or Next.js project starts on a different port.** Check that the framework was detected correctly in the project settings; the "Jiný" (other) option only sets the `PORT` variable.
+
+## Development
 
 ```bash
-npx startsite add <path-to-repo>/examples/vite-app --name "Demo Vite" --port 5180
+npm run dev
 ```
 
+Runs the backend with `tsx watch` and the web UI with Vite on port 4501 (proxying `/api` to the backend).
+
 ```bash
-npx startsite start "Demo Vite"
+npm run typecheck
 ```
+
+```
+shared/    shared types and HTTP client
+server/    Fastify backend: processes, ports, logs, API
+mcp/       MCP server (stdio), entry point mcp/index.js
+cli/       the startsite command
+web/       web UI (Vite, React, Tailwind)
+desktop/   desktop app (.NET MAUI)
+scripts/   desktop and Start menu shortcuts
+examples/  sample projects: a Vite app, an nginx compose stack and a Dockerfile
+```
+
+The sample projects are a quick way to try StartSite: `examples/vite-app` needs `npm install` once, the other two need Docker.
+
+## Status
+
+StartSite is a personal tool under active development. The interface is in Czech, and the desktop app is Windows only.

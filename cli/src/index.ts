@@ -1,4 +1,5 @@
 // CLI: startsite list | start | stop | restart | logs | add | port
+import { resolve } from 'node:path';
 import type { LogLine, ProjectView, ServerEvent } from '@startsite/shared';
 import { ApiRequestError, StartSiteClient } from '@startsite/shared/client';
 
@@ -133,7 +134,8 @@ async function main() {
     case 'add': {
       const path = need(positional[0], 'startsite add <cesta> [--name X] [--port N]');
       const p = await client.add({
-        path,
+        // Relativní cestu vyhodnotíme tady, backend běží v jiné složce
+        path: resolve(path),
         name: typeof flags.name === 'string' ? flags.name : undefined,
         port: flags.port ? Number(flags.port) : undefined,
       });
