@@ -1,0 +1,25 @@
+{
+  "name": "startsite",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lokální spouštěč projektů (npm, Docker, vlastní příkazy) s web UI, MCP serverem a CLI.",
+  "workspaces": ["shared", "server", "mcp", "cli", "web"],
+  "bin": {
+    "startsite": "cli/bin/startsite.js"
+  },
+  "scripts": {
+    "build": "npm run build -w shared && npm run build -w server -w mcp -w cli -w web",
+    "predev": "npm run build -w shared",
+    "dev": "concurrently -k -n server,web -c green,cyan \"npm run dev -w server\" \"npm run dev -w web\"",
+    "start": "node server/dist/index.js",
+    "typecheck": "npm run build -w shared && npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
