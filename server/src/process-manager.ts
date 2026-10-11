@@ -47,7 +47,7 @@ interface RunState {
 }
 
 function dockerNames(p: Project) {
-  return { container: `startsite-${p.id}`, image: `startsite-${p.id}`, composeProject: `startsite-${p.id}` };
+  return { container: `startsite-${p.id}`, image: `startsite-${p.id}` };
 }
 
 function npmPortArgs(p: Project, port: number): string {
@@ -126,7 +126,7 @@ export class ProcessManager {
         return (p.command ?? '').replaceAll('{port}', String(port));
       case 'compose': {
         const file = findComposeFile(p.path) ?? 'compose.yaml';
-        return `docker compose -p ${dockerNames(p).composeProject} -f ${file} up -d  (port ${port}:${p.containerPort ?? '?'}${p.service ? `, služba ${p.service}` : ''})`;
+        return `docker compose -f ${file} up -d  (port ${port}:${p.containerPort ?? '?'}${p.service ? `, služba ${p.service}` : ''})`;
       }
       case 'dockerfile': {
         const n = dockerNames(p);
@@ -347,7 +347,9 @@ export class ProcessManager {
       );
       files.push('-f', override);
     }
-    return ['compose', '-p', dockerNames(p).composeProject, ...files];
+    // Bez -p: compose použije name: ze souboru nebo název složky, tedy stejné kontejnery
+    // a svazky (databáze), jako když projekt spouštíš ručně.
+    return ['compose', ...files];
   }
 
   private async startDocker(p: Project, port: number, generation: number) {
@@ -358,7 +360,7 @@ export class ProcessManager {
 
     if (p.kind === 'compose') {
       const base = await this.composeFiles(p, port);
-      await this.store.setRuntime(p.id, { kind: p.kind, port, startedAt: new Date().toISOString(), composeProject: n.composeProject });
+      await this.store.setRuntime(p.id, { kind: p.kind, port, startedAt: new Date().toISOString() });
       const up = await this.runStep(p, [...base, 'up', '-d', '--remove-orphans'], env);
       if (up.code !== 0) throw new Error(dockerError(up.output) ?? `docker compose up skončil s kódem ${up.code}`);
       followArgs = [...base, 'logs', '-f', '--tail', '50'];
@@ -605,7 +607,9 @@ export class ProcessManager {
   private async dockerRunning(p: Project, rec: RuntimeRecord): Promise<boolean> {
     try {
       if (rec.kind === 'compose') {
-        const { stdout } = await run('docker', ['compose', '-p', rec.composeProject ?? dockerNames(p).composeProject, 'ps', '-q', '--status', 'running'], {
+        // Starší záznamy mají vlastní název projektu (-p), nové používají výchozí z compose
+        const target = rec.composeProject ? ['-p', rec.composeProject] : ['-f', findComposeFile(p.path) ?? 'compose.yaml'];
+        const { stdout } = await run('docker', ['compose', ...target, 'ps', '-q', '--status', 'running'], {
           windowsHide: true,
           cwd: p.path,
         });
