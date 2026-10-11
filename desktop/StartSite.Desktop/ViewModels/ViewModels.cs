@@ -88,9 +88,46 @@ public partial class ProjectItem : ObservableObject
     public bool IsErrorState => Status == "error";
     public string ToggleIcon => IsActive ? Icons.Stop : Icons.Play;
     public string ToggleText => IsActive ? Loc.T("Stop") : Loc.T("Start");
-    public string Subtitle => IsErrorState && !string.IsNullOrEmpty(dto.Runtime.Error) ? dto.Runtime.Error! : dto.Path;
+    public string Subtitle => IsErrorState && !string.IsNullOrEmpty(dto.Runtime.Error) ? dto.Runtime.Error! : ShortPath;
+
+    /// <summary>Poslední dvě složky cesty, v úzkém seznamu řeknou víc než useknutý začátek.</summary>
+    public string ShortPath
+    {
+        get
+        {
+            var parts = dto.Path.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length <= 2 ? dto.Path : "…\\" + string.Join("\\", parts[^2..]);
+        }
+    }
     public string ResolvedCommand => dto.ResolvedCommand;
-    public string ProcessText => dto.Runtime.Pid is int pid ? $"PID {pid}" : Kind is not ("compose" or "dockerfile") ? Loc.T("NotRunning") : Loc.T("DockerContainer");
+    public string ProcessText
+    {
+        get
+        {
+            var basic = dto.Runtime.Pid is int pid ? $"PID {pid}" : Kind is not ("compose" or "dockerfile") ? Loc.T("NotRunning") : Loc.T("DockerContainer");
+            return IsActive && Uptime is { } up ? $"{basic} · {up}" : basic;
+        }
+    }
+
+    /// <summary>Jak dlouho projekt běží, z času startu v backendu.</summary>
+    string? Uptime
+    {
+        get
+        {
+            if (!DateTimeOffset.TryParse(dto.Runtime.StartedAt, out var started)) return null;
+            var span = DateTimeOffset.Now - started;
+            if (span.TotalMinutes < 1) return Loc.T("UptimeJustNow");
+            if (span.TotalHours < 1) return Loc.F("UptimeMinutes", (int)span.TotalMinutes);
+            if (span.TotalDays < 1) return Loc.F("UptimeHours", (int)span.TotalHours, span.Minutes);
+            return Loc.F("UptimeDays", (int)span.TotalDays);
+        }
+    }
+
+    /// <summary>Doba běhu se mění, i když se stav nezmění.</summary>
+    public void RefreshUptime()
+    {
+        if (IsActive) OnPropertyChanged(nameof(ProcessText));
+    }
     public List<EnvEntry> EnvEntries => dto.Env.Select(kv => new EnvEntry(kv.Key, kv.Value)).ToList();
     public bool HasEnv => dto.Env.Count > 0;
     public string EnvEmptyText => Loc.F("EnvOnlyPort", dto.Port);
@@ -249,6 +286,11 @@ public partial class MainViewModel : ObservableObject
                 timer.Interval = TimeSpan.FromMilliseconds(120);
                 timer.Tick += (_, _) => FlushLogs();
                 timer.Start();
+                // Doba běhu v detailu: stačí jednou za půl minuty
+                var uptime = Application.Current.Dispatcher.CreateTimer();
+                uptime.Interval = TimeSpan.FromSeconds(30);
+                uptime.Tick += (_, _) => Selected?.RefreshUptime();
+                uptime.Start();
             }
             await ReloadAsync(false);
         }
@@ -563,6 +605,14 @@ public partial class MainViewModel : ObservableObject
         await Task.Delay(1400);
         CopyIcon = Icons.Copy;
         CopyText = Loc.T("Copy");
+    }
+
+    /// <summary>Otevře složku projektu v Průzkumníkovi.</summary>
+    [RelayCommand]
+    void OpenFolder()
+    {
+        if (Selected == null || !Directory.Exists(Selected.Path)) return;
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{Selected.Path}\"") { UseShellExecute = true });
     }
 
     [RelayCommand]

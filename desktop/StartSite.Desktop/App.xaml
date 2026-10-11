@@ -123,6 +123,18 @@
                 <Setter Property="BackgroundColor" Value="Transparent" />
                 <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc600}, Dark={StaticResource Zinc400}}" />
             </Style>
+            <!-- Start/stop v řádku seznamu: tlumené, aby osm stejných tlačítek nepřebilo názvy projektů -->
+            <Style x:Key="RowToggleButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+                <Setter Property="FontFamily" Value="{StaticResource IconFill}" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="WidthRequest" Value="30" />
+                <Setter Property="HeightRequest" Value="30" />
+                <Setter Property="MinimumHeightRequest" Value="30" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="CornerRadius" Value="7" />
+                <Setter Property="BackgroundColor" Value="Transparent" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc600}, Dark={StaticResource Zinc300}}" />
+            </Style>
             <Style x:Key="FilterChip" TargetType="Button" BasedOn="{StaticResource BaseButton}">
                 <Setter Property="HeightRequest" Value="26" />
                 <Setter Property="MinimumHeightRequest" Value="26" />

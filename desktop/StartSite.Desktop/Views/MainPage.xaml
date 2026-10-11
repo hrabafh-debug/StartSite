@@ -197,7 +197,7 @@
                                             </DataTrigger>
                                         </Label.Triggers>
                                     </Label>
-                                    <Button Grid.Column="3" Style="{StaticResource IconButton}" FontFamily="{StaticResource IconFill}" FontSize="13"
+                                    <Button Grid.Column="3" Style="{StaticResource RowToggleButton}"
                                             Text="{Binding ToggleIcon}" IsEnabled="{Binding Busy, Converter={StaticResource Not}}"
                                             ToolTipProperties.Text="{Binding ToggleText}" SemanticProperties.Description="{Binding ToggleText}"
                                             Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MainViewModel}}, Path=ToggleCommand, x:DataType=vm:MainViewModel}"
@@ -334,7 +334,11 @@
                     </VerticalStackLayout>
 
                     <VerticalStackLayout Grid.Row="2" Grid.ColumnSpan="2" Spacing="4">
-                        <Label Text="{s:T Folder}" Style="{StaticResource Muted}" />
+                        <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="10">
+                            <Label Text="{s:T Folder}" Style="{StaticResource Muted}" VerticalOptions="Center" />
+                            <Button Grid.Column="1" Style="{StaticResource GhostButton}" Text="{s:T OpenFolder}" Command="{Binding OpenFolderCommand}"
+                                    HeightRequest="22" MinimumHeightRequest="22" Padding="6,0" FontSize="11.5" VerticalOptions="Center" />
+                        </Grid>
                         <Label Text="{Binding Selected.Path}" Style="{StaticResource MonoLabel}" LineBreakMode="CharacterWrap"
                                TextColor="{AppThemeBinding Light={StaticResource Zinc600}, Dark={StaticResource Zinc400}}" />
                     </VerticalStackLayout>
