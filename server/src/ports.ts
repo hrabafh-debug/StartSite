@@ -83,8 +83,12 @@ export async function checkPort(port: number, listeners?: Map<number, number>): 
   return { free: true };
 }
 
-export async function findFreePort(start = 5100, exclude: Set<number> = new Set()): Promise<number> {
-  const listeners = await listListeners();
+export async function findFreePort(
+  start = 5100,
+  exclude: Set<number> = new Set(),
+  known?: Map<number, number>,
+): Promise<number> {
+  const listeners = known ?? (await listListeners());
   for (let port = Math.max(1024, start); port < 65535; port++) {
     if (exclude.has(port) || listeners.has(port)) continue;
     if (await canBind(port, '127.0.0.1')) return port;

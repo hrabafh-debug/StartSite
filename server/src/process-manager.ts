@@ -221,9 +221,10 @@ export class ProcessManager {
     }
 
     const port = p.port;
-    const check = await checkPort(port);
+    const listeners = await listListeners();
+    const check = await checkPort(port, listeners);
     if (!check.free) {
-      const suggestedPort = await findFreePort(port + 1, this.reservedPorts(id));
+      const suggestedPort = await findFreePort(port + 1, this.reservedPorts(id), listeners);
       const owner = check.owner!;
       const message = `Port ${port} drží ${owner.name} (PID ${owner.pid}). Volný je ${suggestedPort}.`;
       this.logBuffer(id).system(message);
