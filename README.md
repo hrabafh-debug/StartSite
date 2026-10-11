@@ -1,44 +1,19 @@
 # StartSite
 
-Lokální spouštěč webů a aplikací. Projekt (npm, Docker Compose, Dockerfile nebo vlastní příkaz) přidáš cestou ke složce, nastavíš port a spouštíš ho jedním tlačítkem. Dostaneš odkaz `http://localhost:<port>` a živé logy. Stejné projekty ovládá Claude přes MCP server a ty z terminálu přes CLI `startsite`.
+A local launcher for your web projects and apps. Add a project by pointing it at a folder (npm, Docker Compose, Dockerfile or a custom command), pick a port, and start it with one click. You get a `http://localhost:<port>` link and live logs. Claude controls the same projects through an MCP server, and you can drive them from the terminal with the `startsite` CLI.
 
-Hlavní rozhraní je desktopová aplikace pro Windows v .NET MAUI. Stejný stav ukazuje i webové rozhraní na http://localhost:4500.
+The main interface is a Windows desktop app built with .NET MAUI. A web UI at http://localhost:4500 shows the same state. The UI text is in Czech.
 
 ![StartSite](docs/desktop.png)
 
-## Požadavky
+## Requirements
 
-- Node 20 nebo novější
-- Windows 11 (backend, MCP a CLI fungují i na macOS a Linuxu)
-- Pro desktopovou aplikaci .NET 10 SDK s MAUI workloadem: `dotnet workload install maui-windows`
-- Docker Desktop, jen pro Docker projekty
+- Node 20 or newer
+- Windows 11 (the backend, MCP server and CLI also run on macOS and Linux)
+- For the desktop app: .NET 10 SDK with the MAUI workload (`dotnet workload install maui-windows`)
+- Docker Desktop, only for Docker projects
 
-## Desktopová aplikace
-
-```bash
-npm run build
-```
-
-```bash
-npm run build:desktop
-```
-
-```bash
-npm run shortcut
-```
-
-`build:desktop` sestaví `desktop/publish/StartSite.exe`, `shortcut` na něj vytvoří zástupce na ploše a v nabídce Start.
-
-- Při spuštění aplikace najde repo (podle umístění `.exe`, nebo proměnné `STARTSITE_ROOT`) a spustí Node backend na pozadí, když neběží. Když backend za běhu spadne, spustí ho znovu.
-- Zavření aplikace projekty ani backend nezastaví, takže je Claude přes MCP dál vidí a ovládá.
-- Běží jen jedna instance; další spuštění přenese do popředí okno, které už běží.
-- Složku projektu jde vybrat systémovým dialogem.
-- Motiv se přepíná ikonou v hlavičce (podle systému, světlý, tmavý).
-- Pády se zapisují do `%LOCALAPPDATA%\StartSite\crash.log`.
-
-Zdrojáky jsou v `desktop/StartSite.Desktop/`: `Services/Backend.cs` (spouštění backendu, HTTP API, SSE), `ViewModels/ViewModels.cs`, `Views/MainPage.xaml`.
-
-## Instalace
+## Installation
 
 ```bash
 npm install
@@ -48,78 +23,99 @@ npm install
 npm run build
 ```
 
-`npm run build` sestaví sdílené typy, backend, MCP server, CLI a frontend. Bez buildu MCP ani CLI nenajdou zkompilované soubory.
+`npm run build` builds the shared types, backend, MCP server, CLI and web UI. The MCP server and CLI need this build to run.
 
-## Spuštění
+## Desktop app
+
+```bash
+npm run build:desktop
+```
+
+```bash
+npm run shortcut
+```
+
+`build:desktop` produces `desktop/publish/StartSite.exe`. `shortcut` creates shortcuts to it on the desktop and in the Start menu.
+
+- On launch, the app locates the repo (from the location of the `.exe`, or the `STARTSITE_ROOT` environment variable) and starts the Node backend in the background if it is not running. If the backend dies later, the app starts it again.
+- Closing the app does not stop the backend or your projects, so Claude can keep using them through MCP.
+- Only one instance runs at a time. Launching it again brings the existing window to the front.
+- You can pick a project folder with the system folder dialog.
+- The header icon switches the theme: system, light, dark.
+- Crashes are written to `%LOCALAPPDATA%\StartSite\crash.log`.
+
+Source lives in `desktop/StartSite.Desktop/`: `Services/Backend.cs` (backend startup, HTTP API, SSE), `ViewModels/ViewModels.cs`, `Views/MainPage.xaml`.
+
+## Running the backend and web UI
 
 ```bash
 npm start
 ```
 
-Otevři http://localhost:4500. Backend poslouchá jen na `127.0.0.1` a servíruje i frontend.
+Open http://localhost:4500. The backend listens on `127.0.0.1` only and also serves the web UI.
 
-Jiný port nastavíš parametrem `--port` nebo proměnnou `STARTSITE_PORT`:
+To use another port, pass `--port` or set `STARTSITE_PORT`:
 
 ```bash
 npm start -- --port 4700
 ```
 
-MCP server a CLI čtou port jen z `STARTSITE_PORT`, takže při jiném portu ji nastav i pro ně.
+The MCP server and CLI read the port only from `STARTSITE_PORT`, so set it for them too.
 
-Vývoj s hot reloadem (backend přes `tsx watch`, frontend přes Vite na portu 4501 s proxy na `/api`):
+Development with hot reload (backend via `tsx watch`, web UI via Vite on port 4501 with an `/api` proxy):
 
 ```bash
 npm run dev
 ```
 
-## Registrace MCP pro Claude Code
+## Registering the MCP server with Claude Code
 
 ```bash
-claude mcp add startsite -- node C:/Users/hraba/Projekty/StartSite/mcp/index.js
+claude mcp add startsite -- node <path-to-repo>/mcp/index.js
 ```
 
-Obecně `claude mcp add startsite -- node <cesta-k-repu>/mcp/index.js`. Kontrola:
+Check the connection:
 
 ```bash
 claude mcp get startsite
 ```
 
-Má hlásit `Status: Connected`. Když backend neběží, MCP server ho sám spustí na pozadí (výstup jde do `data/server.log`). UI i Claude tak pracují se stejným stavem.
+It should report `Status: Connected`. If the backend is not running, the MCP server starts it in the background (output goes to `data/server.log`), so the UI and Claude always share the same state.
 
-| Nástroj | Co dělá |
+| Tool | What it does |
 | --- | --- |
-| `list_projects` | seznam projektů se stavem, portem a URL |
-| `get_project` | detail včetně env proměnných |
-| `add_project` | přidá složku, typ a skript pozná sám, bez portu vybere volný |
-| `update_project` | změní název, port, příkaz, env... |
-| `remove_project` | odebere záznam, soubory na disku nechá |
-| `start_project` | spustí a počká, až port odpovídá; při obsazeném portu vrátí, kdo ho drží, a volný port |
-| `stop_project` | zastaví celý strom procesů nebo kontejnery |
-| `restart_project` | stop a start |
-| `get_logs` | posledních N řádků (parametr `lines`, výchozí 100), bez ANSI barev |
-| `find_free_port` | volný port, který nepoužívá systém ani jiný projekt |
+| `list_projects` | lists projects with status, port and URL |
+| `get_project` | project details including environment variables |
+| `add_project` | adds a folder; detects the type and script, picks a free port if none is given |
+| `update_project` | changes name, port, command, env and so on |
+| `remove_project` | removes the entry; files on disk stay untouched |
+| `start_project` | starts the project and waits until the port responds; if the port is taken, returns who holds it and a free port |
+| `stop_project` | stops the whole process tree or the containers |
+| `restart_project` | stop, then start |
+| `get_logs` | last N lines (`lines` parameter, default 100), without ANSI colors |
+| `find_free_port` | a port not used by the system or another project |
 
-Každý nástroj vrací stav a URL. Projekt jde zadat názvem i ID, na velikosti písmen nezáleží (`Demo Vite`, `demo-vite`, `DEMO-VITE`).
+Every tool returns the status and URL. Projects can be referenced by name or ID, case-insensitively (`Demo Vite`, `demo-vite`, `DEMO-VITE`).
 
 ## CLI
 
-Z repa přes `npx`:
+From the repo, via `npx`:
 
 ```bash
 npx startsite list
 ```
 
-Globálně (jednou, z kořene repa):
+Globally (once, from the repo root):
 
 ```bash
 npm link
 ```
 
-Příklady:
+Examples:
 
 ```bash
 startsite list
-startsite add C:/projekty/muj-web --port 5180
+startsite add C:/projects/my-site --port 5180
 startsite start "Demo Vite"
 startsite start demo-vite --port 5181
 startsite logs demo-vite -n 50
@@ -129,106 +125,106 @@ startsite stop demo-vite
 startsite port 5200
 ```
 
-`start` a `restart` čekají, až port odpovídá, a když se to nepovede, vrátí nenulový exit kód. Při obsazeném portu vypíšou PID a název procesu a navrhnou volný port.
+`start` and `restart` wait until the port responds and exit with a non-zero code if it never does. When the port is taken, they print the PID and process name and suggest a free port.
 
-## Jak to funguje
+## How it works
 
-### Typy projektů
+### Project types
 
-| Ve složce | Typ | Start | Stop |
+| Folder contains | Type | Start | Stop |
 | --- | --- | --- | --- |
-| `package.json` | npm | `npm run <skript>`, výchozí `dev` | `taskkill /T /F` na celý strom |
+| `package.json` | npm | `npm run <script>`, `dev` by default | `taskkill /T /F` on the whole tree |
 | `compose.yaml` / `docker-compose.yml` | compose | `docker compose up -d` | `docker compose down` |
-| `Dockerfile` bez compose | docker | `docker build` + `docker run -d --rm -p` | `docker stop` |
-| cokoli jiného | příkaz | tvůj příkaz v shellu, `{port}` se nahradí | `taskkill /T /F` |
+| `Dockerfile` without compose | docker | `docker build` + `docker run -d --rm -p` | `docker stop` |
+| anything else | custom | your shell command, `{port}` is substituted | `taskkill /T /F` |
 
-### Předávání portu
+### Passing the port
 
-- Vždy env `PORT`.
+- The `PORT` environment variable is always set.
 - Vite, Astro, SvelteKit: `npm run dev -- --port <port> --strictPort`.
 - Next.js: `npm run dev -- -p <port>`.
-- Framework se pozná z `dependencies` a `devDependencies` v `package.json`.
-- Compose: StartSite vygeneruje `data/compose/<id>.override.yml`, který přepíše porty vybrané služby na `<port>:<containerPort>` (`ports: !override`, potřebuje Compose 2.24+). Port v kontejneru čte z compose souboru.
-- Dockerfile: `-p <port>:<containerPort>`, port v kontejneru čte z `EXPOSE`. Když ho nenajde, formulář si o něj řekne.
+- The framework is detected from `dependencies` and `devDependencies` in `package.json`.
+- Compose: StartSite writes `data/compose/<id>.override.yml`, which replaces the ports of the chosen service with `<port>:<containerPort>` (`ports: !override`, requires Compose 2.24+). The container port is read from the compose file. StartSite runs compose with its default project name (the `name:` field or the folder name), so it uses the same containers and volumes (databases) as running `docker compose` by hand.
+- Dockerfile: `-p <port>:<containerPort>`, with the container port read from `EXPOSE`. If there is none, the form asks for it.
 
-### Stavy
+### States
 
-`zastaveno`, `startuje`, `běží`, `chyba`. „Běží“ se nastaví až ve chvíli, kdy port přijme TCP spojení. Zkouší `127.0.0.1` i `::1`, protože Vite často poslouchá jen na IPv6. Když port neodpoví do 3 minut (Docker 5 minut), projekt se zastaví a dostane stav chyba.
+`stopped`, `starting`, `running`, `error`. A project counts as running only once its port accepts a TCP connection. Both `127.0.0.1` and `::1` are probed, because Vite often listens on IPv6 only. If the port does not respond within 3 minutes (5 for Docker), the project is stopped and marked as an error.
 
-Před startem StartSite ověří, že port je volný (`netstat -ano` a zkušební bind). Když ne, vrátí PID a název procesu (`tasklist`) a navrhne volný port.
+Before starting, StartSite checks that the port is free (`netstat -ano` plus a test bind). If it is not, it reports the PID and process name (`tasklist`) and suggests a free port.
 
-### Úklid procesů
+### Process cleanup
 
-- Stop zabije celý strom procesů (`taskkill /PID <pid> /T /F`). Když na portu i potom něco poslouchá, ukončí i to: port byl před startem volný, takže patří projektu.
-- PID, port a jména kontejnerů běžících projektů se ukládají do `data/runtime.json`. Po restartu StartSite z nich ověří skutečný stav: běžící procesy a kontejnery převezme (jdou zastavit), neplatné záznamy smaže.
-- Vypnutí StartSite projekty nezastaví.
+- Stop kills the whole process tree (`taskkill /PID <pid> /T /F`). If something still listens on the port afterwards, it is killed too: the port was free before the start, so it belongs to the project.
+- PIDs, ports and container names of running projects are stored in `data/runtime.json`. After a StartSite restart, the real state is checked against them: running processes and containers are adopted (and can be stopped), stale entries are removed.
+- Shutting down StartSite leaves your projects running.
 
-### Úložiště: JSON, ne SQLite
+### Storage: JSON, not SQLite
 
-Projekty jsou v `data/projects.json` a zapisují se atomicky (temp soubor a `rename`, zápisy jdou za sebou). JSON proto, že:
+Projects live in `data/projects.json` and are written atomically (temp file plus `rename`, writes are serialized). JSON because:
 
-- projektů bude desítky, ne tisíce, a celý seznam se vejde do paměti,
-- `better-sqlite3` je nativní modul a na Windows s novým Node často chybí předkompilovaná binárka, takže `npm install` chce Visual Studio Build Tools,
-- soubor jde přečíst, ručně upravit a zálohovat.
+- there will be dozens of projects, not thousands, and the whole list fits in memory,
+- `better-sqlite3` is a native module, and on Windows with a recent Node a prebuilt binary is often missing, so `npm install` needs Visual Studio Build Tools,
+- the file is easy to read, edit by hand and back up.
 
-### Logy
+### Logs
 
-Každý projekt drží posledních 2000 řádků stdout a stderr v paměti. UI je dostává živě přes Server-Sent Events (`/api/events`), ANSI barvy převádí na HTML přes `ansi_up` a řádky s chybou zvýrazní. CLI a MCP dostávají text bez ANSI.
+Each project keeps its last 2000 lines of stdout and stderr in memory. The UIs receive them live over Server-Sent Events (`/api/events`), render ANSI colors and highlight error lines. The CLI and MCP get plain text without ANSI codes.
 
 ## HTTP API
 
-Vše na `http://127.0.0.1:4500`. `:ref` je ID nebo název.
+Everything is served at `http://127.0.0.1:4500`. `:ref` is a project ID or name.
 
-| Metoda | Cesta | Popis |
+| Method | Path | Description |
 | --- | --- | --- |
-| GET | `/api/health` | kontrola, že backend běží |
-| GET | `/api/projects` | seznam |
-| POST | `/api/projects` | přidání `{ path, name?, kind?, script?, command?, port?, containerPort?, service?, env? }` |
-| GET | `/api/projects/:ref` | detail |
-| PATCH | `/api/projects/:ref` | úprava |
-| DELETE | `/api/projects/:ref` | odebrání záznamu |
-| POST | `/api/projects/:ref/start` | start, tělo `{ port?, wait? }`; obsazený port vrátí `409` s `owner` a `suggestedPort` |
+| GET | `/api/health` | backend health check |
+| GET | `/api/projects` | list projects |
+| POST | `/api/projects` | add `{ path, name?, kind?, script?, command?, port?, containerPort?, service?, env? }` |
+| GET | `/api/projects/:ref` | project details |
+| PATCH | `/api/projects/:ref` | update |
+| DELETE | `/api/projects/:ref` | remove the entry |
+| POST | `/api/projects/:ref/start` | start, body `{ port?, wait? }`; a taken port returns `409` with `owner` and `suggestedPort` |
 | POST | `/api/projects/:ref/stop` | stop |
 | POST | `/api/projects/:ref/restart` | restart |
-| GET | `/api/projects/:ref/logs?limit=100&plain=1` | logy |
-| DELETE | `/api/projects/:ref/logs` | smazání logů |
-| POST | `/api/detect` | rozpoznání složky `{ path }` |
-| GET | `/api/ports/free?start=5100` | volný port |
-| GET | `/api/ports/:port` | kdo drží port |
-| GET | `/api/events` | SSE stream stavů a logů |
+| GET | `/api/projects/:ref/logs?limit=100&plain=1` | logs |
+| DELETE | `/api/projects/:ref/logs` | clear logs |
+| POST | `/api/detect` | detect a folder `{ path }` |
+| GET | `/api/ports/free?start=5100` | find a free port |
+| GET | `/api/ports/:port` | who holds a port |
+| GET | `/api/events` | SSE stream of states and logs |
 
-API odmítá požadavky s jiným `Host` nebo `Origin` než localhost, aby cizí web otevřený v prohlížeči nemohl spouštět příkazy.
+The API rejects requests whose `Host` or `Origin` is not localhost, so a website open in your browser cannot run commands through it.
 
-## Ovládání UI
+## Keyboard shortcuts
 
-| Klávesa | Akce |
+| Key | Action |
 | --- | --- |
-| `/` | hledání |
-| `N` | nový projekt |
-| `S` | start nebo stop vybraného projektu |
-| šipky | výběr projektu |
-| `Esc` | zavře formulář nebo vyčistí hledání |
+| `/` | search |
+| `N` | new project |
+| `S` | start or stop the selected project |
+| arrows | select a project |
+| `Esc` | close the form or clear the search |
 
-## Struktura
+## Repository layout
 
 ```
-shared/   typy a HTTP klient (spustí backend, když neběží)
-server/   Fastify backend, správa procesů, porty, logy
-mcp/      MCP server (stdio), vstup mcp/index.js
-cli/      příkaz startsite
-web/      Vite + React + Tailwind
-desktop/  desktopová aplikace (.NET MAUI), sestavení v desktop/publish (není v gitu)
-scripts/  install-shortcut.ps1 pro zástupce na ploše a v nabídce Start
-examples/ vite-app, nginx-compose, dockerfile-app na vyzkoušení
-data/     projects.json, runtime.json, server.log (není v gitu)
+shared/   types and HTTP client (starts the backend if it is not running)
+server/   Fastify backend: process management, ports, logs
+mcp/      MCP server (stdio), entry point mcp/index.js
+cli/      the startsite command
+web/      Vite + React + Tailwind web UI
+desktop/  .NET MAUI desktop app, build output in desktop/publish (not in git)
+scripts/  install-shortcut.ps1 for desktop and Start menu shortcuts
+examples/ vite-app, nginx-compose, dockerfile-app to try things out
+data/     projects.json, runtime.json, server.log (not in git)
 ```
 
-## Ukázky
+## Examples
 
-`examples/vite-app` potřebuje jednou `npm install` ve své složce, Docker ukázky běžící Docker.
+`examples/vite-app` needs `npm install` once in its folder. The Docker examples need Docker running.
 
 ```bash
-npx startsite add C:/Users/hraba/Projekty/StartSite/examples/vite-app --name "Demo Vite" --port 5180
+npx startsite add <path-to-repo>/examples/vite-app --name "Demo Vite" --port 5180
 ```
 
 ```bash
