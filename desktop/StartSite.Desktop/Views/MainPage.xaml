@@ -303,7 +303,7 @@
                 </Border>
 
                 <!-- Port, proces, příkaz, složka, env -->
-                <Grid Grid.Row="3" ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="32" RowSpacing="14">
+                <Grid Grid.Row="3" ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="32" RowSpacing="14">
                     <VerticalStackLayout Spacing="6">
                         <Label Text="{s:T Port}" Style="{StaticResource Muted}" />
                         <HorizontalStackLayout Spacing="8">
@@ -339,7 +339,11 @@
                                TextColor="{AppThemeBinding Light={StaticResource Zinc600}, Dark={StaticResource Zinc400}}" />
                     </VerticalStackLayout>
 
-                    <VerticalStackLayout Grid.Row="3" Grid.ColumnSpan="2" Spacing="4">
+                    <VerticalStackLayout Grid.Row="3" Grid.ColumnSpan="2" Spacing="4" IsVisible="{Binding Selected.HasDepends}">
+                        <Label Text="{s:T DependsOn}" Style="{StaticResource Muted}" />
+                        <Label Text="{Binding Selected.DependsText}" Style="{StaticResource MonoLabel}" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Row="4" Grid.ColumnSpan="2" Spacing="4">
                         <Label Text="{s:T EnvVars}" Style="{StaticResource Muted}" />
                         <Label Text="{Binding Selected.EnvEmptyText}" Style="{StaticResource MonoLabel}" IsVisible="{Binding Selected.HasEnv, Converter={StaticResource Not}}"
                                TextColor="{AppThemeBinding Light={StaticResource Zinc500}, Dark={StaticResource Zinc400}}" />
@@ -468,8 +472,8 @@
                             <VerticalStackLayout Spacing="6">
                                 <Label Text="{s:T Type}" Style="{StaticResource FieldLabel}" />
                                 <Border Padding="4" StrokeThickness="0" BackgroundColor="{AppThemeBinding Light={StaticResource Zinc100}, Dark={StaticResource Zinc900}}">
-                                    <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="4">
-                                        <Button Grid.Column="0" Text="npm" Command="{Binding SelectKindCommand}" CommandParameter="npm" Style="{StaticResource GhostButton}">
+                                    <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="4" RowSpacing="4">
+                                        <Button Grid.Row="0" Grid.Column="0" Text="npm" Command="{Binding SelectKindCommand}" CommandParameter="npm" Style="{StaticResource GhostButton}">
                                             <Button.Triggers>
                                                 <DataTrigger TargetType="Button" Binding="{Binding Kind}" Value="npm">
                                                     <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark={StaticResource Zinc800}}" />
@@ -477,7 +481,7 @@
                                                 </DataTrigger>
                                             </Button.Triggers>
                                         </Button>
-                                        <Button Grid.Column="1" Text="compose" Command="{Binding SelectKindCommand}" CommandParameter="compose" Style="{StaticResource GhostButton}">
+                                        <Button Grid.Row="0" Grid.Column="1" Text="compose" Command="{Binding SelectKindCommand}" CommandParameter="compose" Style="{StaticResource GhostButton}">
                                             <Button.Triggers>
                                                 <DataTrigger TargetType="Button" Binding="{Binding Kind}" Value="compose">
                                                     <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark={StaticResource Zinc800}}" />
@@ -485,7 +489,7 @@
                                                 </DataTrigger>
                                             </Button.Triggers>
                                         </Button>
-                                        <Button Grid.Column="2" Text="docker" Command="{Binding SelectKindCommand}" CommandParameter="dockerfile" Style="{StaticResource GhostButton}">
+                                        <Button Grid.Row="0" Grid.Column="2" Text="docker" Command="{Binding SelectKindCommand}" CommandParameter="dockerfile" Style="{StaticResource GhostButton}">
                                             <Button.Triggers>
                                                 <DataTrigger TargetType="Button" Binding="{Binding Kind}" Value="dockerfile">
                                                     <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark={StaticResource Zinc800}}" />
@@ -493,7 +497,23 @@
                                                 </DataTrigger>
                                             </Button.Triggers>
                                         </Button>
-                                        <Button Grid.Column="3" Text="{s:T KindCustom}" Command="{Binding SelectKindCommand}" CommandParameter="custom" Style="{StaticResource GhostButton}">
+                                        <Button Grid.Row="1" Grid.Column="0" Text=".net" Command="{Binding SelectKindCommand}" CommandParameter="dotnet" Style="{StaticResource GhostButton}">
+                                            <Button.Triggers>
+                                                <DataTrigger TargetType="Button" Binding="{Binding Kind}" Value="dotnet">
+                                                    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark={StaticResource Zinc800}}" />
+                                                    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc900}, Dark={StaticResource Zinc50}}" />
+                                                </DataTrigger>
+                                            </Button.Triggers>
+                                        </Button>
+                                        <Button Grid.Row="1" Grid.Column="1" Text="{s:T KindStatic}" Command="{Binding SelectKindCommand}" CommandParameter="static" Style="{StaticResource GhostButton}">
+                                            <Button.Triggers>
+                                                <DataTrigger TargetType="Button" Binding="{Binding Kind}" Value="static">
+                                                    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark={StaticResource Zinc800}}" />
+                                                    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Zinc900}, Dark={StaticResource Zinc50}}" />
+                                                </DataTrigger>
+                                            </Button.Triggers>
+                                        </Button>
+                                        <Button Grid.Row="1" Grid.Column="2" Text="{s:T KindCustom}" Command="{Binding SelectKindCommand}" CommandParameter="custom" Style="{StaticResource GhostButton}">
                                             <Button.Triggers>
                                                 <DataTrigger TargetType="Button" Binding="{Binding Kind}" Value="custom">
                                                     <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=White, Dark={StaticResource Zinc800}}" />
@@ -529,6 +549,22 @@
                                 <Label Text="{Binding CommandError}" IsVisible="{Binding CommandError, Converter={StaticResource HasText}}" Style="{StaticResource ErrorLabel}" />
                                 <Label Text="{s:T CommandHint}" Style="{StaticResource Muted}" LineBreakMode="WordWrap" />
                             </VerticalStackLayout>
+
+                            <!-- npm: automatická instalace -->
+                            <HorizontalStackLayout Spacing="6" IsVisible="{Binding IsNpm}">
+                                <CheckBox IsChecked="{Binding AutoInstall}" Color="{StaticResource Emerald600}" VerticalOptions="Center" />
+                                <Label Text="{s:T AutoInstall}" VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+
+                            <!-- .NET -->
+                            <VerticalStackLayout Spacing="6" IsVisible="{Binding IsDotnet}">
+                                <Label Text="{s:T ProjectFileLabel}" Style="{StaticResource FieldLabel}" />
+                                <Entry Text="{Binding ProjectFile}" Style="{StaticResource MonoEntry}" Placeholder="Web/Web.csproj" />
+                                <Label Text="{s:T DotnetHint}" Style="{StaticResource Muted}" LineBreakMode="WordWrap" />
+                            </VerticalStackLayout>
+
+                            <!-- Statický web -->
+                            <Label Text="{s:T StaticHint}" Style="{StaticResource Muted}" LineBreakMode="WordWrap" IsVisible="{Binding IsStatic}" />
 
                             <!-- Porty -->
                             <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
@@ -582,6 +618,27 @@
                                     </BindableLayout.ItemTemplate>
                                 </VerticalStackLayout>
                                 <Label Text="{Binding EnvError}" IsVisible="{Binding EnvError, Converter={StaticResource HasText}}" Style="{StaticResource ErrorLabel}" />
+                            </VerticalStackLayout>
+
+                            <!-- Závislosti: projekty, které se spustí dřív -->
+                            <VerticalStackLayout Spacing="8" IsVisible="{Binding HasDependencyOptions}">
+                                <Label Text="{s:T StartFirst}" Style="{StaticResource FieldLabel}" />
+                                <Label Text="{s:T StartFirstHint}" Style="{StaticResource Muted}" LineBreakMode="WordWrap" />
+                                <FlexLayout BindableLayout.ItemsSource="{Binding DependencyOptions}" Wrap="Wrap" AlignItems="Start">
+                                    <BindableLayout.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:DependencyOption">
+                                            <Button Style="{StaticResource FilterChip}" Text="{Binding Name}" Margin="0,0,6,6" Clicked="OnDependencyToggle">
+                                                <Button.Triggers>
+                                                    <DataTrigger TargetType="Button" Binding="{Binding IsSelected}" Value="True">
+                                                        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#ECFDF5, Dark=#07211A}" />
+                                                        <Setter Property="BorderColor" Value="{AppThemeBinding Light=#A7F3D0, Dark=#064E3B}" />
+                                                        <Setter Property="TextColor" Value="{AppThemeBinding Light=#047857, Dark=#34D399}" />
+                                                    </DataTrigger>
+                                                </Button.Triggers>
+                                            </Button>
+                                        </DataTemplate>
+                                    </BindableLayout.ItemTemplate>
+                                </FlexLayout>
                             </VerticalStackLayout>
 
                             <!-- U nového projektu: možnost nechat projekty naimportovat Claude -->

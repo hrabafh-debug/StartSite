@@ -49,6 +49,8 @@ export const KIND_LABEL: Record<ProjectKind, string> = {
   npm: 'npm',
   compose: 'compose',
   dockerfile: 'docker',
+  dotnet: '.net',
+  static: 'statický',
   custom: 'příkaz',
 };
 

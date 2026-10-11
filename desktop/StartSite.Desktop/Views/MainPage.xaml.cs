@@ -32,6 +32,12 @@ public partial class MainPage : ContentPage
         };
     }
 
+    /// <summary>Klik na čip závislosti ve formuláři ji zapne nebo vypne.</summary>
+    void OnDependencyToggle(object? sender, EventArgs e)
+    {
+        if (sender is BindableObject { BindingContext: DependencyOption option }) option.IsSelected = !option.IsSelected;
+    }
+
     // ---------- šířka seznamu projektů ----------
 
     const double DefaultListWidth = 380;

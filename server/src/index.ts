@@ -11,7 +11,21 @@ import { checkPort, findFreePort } from './ports.js';
 import { ProcessManager, StartSiteError } from './process-manager.js';
 import { slugify, Store } from './store.js';
 
-const KINDS: ProjectKind[] = ['npm', 'compose', 'dockerfile', 'custom'];
+const KINDS: ProjectKind[] = ['npm', 'compose', 'dockerfile', 'dotnet', 'static', 'custom'];
+const PACKAGE_MANAGERS = ['npm', 'pnpm', 'yarn'] as const;
+
+/** ID závislostí: musí existovat a nesmí ukazovat samy na sebe. Přijme i názvy. */
+function cleanDependsOn(value: unknown, selfId?: string): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids: string[] = [];
+  for (const ref of value) {
+    const dep = store.find(String(ref));
+    if (!dep) throw new StartSiteError('dependency_missing', `Závislost "${ref}" neexistuje`);
+    if (dep.id === selfId) throw new StartSiteError('dependency_self', 'Projekt nemůže záviset sám na sobě');
+    if (!ids.includes(dep.id)) ids.push(dep.id);
+  }
+  return ids;
+}
 const FRAMEWORKS: Framework[] = ['vite', 'astro', 'sveltekit', 'next', 'other'];
 
 const store = new Store();
@@ -105,6 +119,10 @@ async function normalize(input: ProjectPatch, existing?: Project): Promise<Omit<
     port: validPort(input.port) ?? existing?.port ?? (await findFreePort(5100, manager.reservedPorts(existing?.id))),
     env: input.env !== undefined ? cleanEnv(input.env) : (existing?.env ?? {}),
   };
+  const dependsOn = input.dependsOn !== undefined ? cleanDependsOn(input.dependsOn, existing?.id) : (existing?.dependsOn ?? []);
+  if (dependsOn.length) result.dependsOn = dependsOn;
+  const autoInstall = input.autoInstall ?? existing?.autoInstall;
+  if (autoInstall === false) result.autoInstall = false;
 
   if (kind === 'npm') {
     const script = input.script ?? base?.script ?? detected.defaultScript;
@@ -116,8 +134,19 @@ async function normalize(input: ProjectPatch, existing?: Project): Promise<Omit<
     const fw = input.framework ?? base?.framework ?? detected.framework ?? 'other';
     if (!FRAMEWORKS.includes(fw)) throw new StartSiteError('invalid_framework', `Neznámý framework: ${fw}`);
     result.framework = fw;
+    const pm = input.packageManager ?? base?.packageManager ?? detected.packageManager ?? 'npm';
+    if (!PACKAGE_MANAGERS.includes(pm)) throw new StartSiteError('invalid_package_manager', `Neznámý správce balíčků: ${pm}`);
+    if (pm !== 'npm') result.packageManager = pm;
+  } else if (kind === 'dotnet') {
+    const projectFile = (input.projectFile ?? base?.projectFile ?? detected.projectFile ?? '').trim();
+    if (!projectFile || !existsSync(join(detected.path, projectFile))) {
+      throw new StartSiteError('project_file_missing', 'Ve složce není webový .csproj');
+    }
+    result.projectFile = projectFile;
+  } else if (kind === 'static') {
+    // Vestavěný statický server, nic dalšího nepotřebuje
   } else if (kind === 'custom') {
-    const command = (input.command ?? base?.command ?? '').trim();
+    const command = (input.command ?? base?.command ?? detected.command ?? '').trim();
     if (!command) throw new StartSiteError('command_required', 'Vlastní projekt potřebuje příkaz');
     result.command = command;
   } else {
@@ -173,6 +202,10 @@ app.patch<{ Params: { ref: string }; Body: ProjectPatch }>('/api/projects/:ref',
   delete p.framework;
   delete p.service;
   delete p.containerPort;
+  delete p.projectFile;
+  delete p.packageManager;
+  delete p.autoInstall;
+  delete p.dependsOn;
   Object.assign(p, fields, { updatedAt: new Date().toISOString() });
   await store.saveProjects();
   const view = manager.view(p);
@@ -185,6 +218,13 @@ app.delete<{ Params: { ref: string } }>('/api/projects/:ref', async (req) => {
   const view = manager.view(p);
   await manager.forget(p.id);
   store.projects = store.projects.filter((x) => x.id !== p.id);
+  // Smazaný projekt už nemůže být závislostí jiných
+  for (const other of store.projects) {
+    if (other.dependsOn?.includes(p.id)) {
+      other.dependsOn = other.dependsOn.filter((d) => d !== p.id);
+      bus.emitEvent({ type: 'project', project: manager.view(other) });
+    }
+  }
   await store.saveProjects();
   await store.setRuntime(p.id, undefined);
   bus.emitEvent({ type: 'removed', id: p.id });

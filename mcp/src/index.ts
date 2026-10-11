@@ -39,7 +39,14 @@ async function call(fn: () => Promise<unknown>) {
 }
 
 const projectRef = z.string().describe('Název nebo ID projektu (bez ohledu na velikost písmen)');
-const kind = z.enum(['npm', 'compose', 'dockerfile', 'custom']);
+const kind = z.enum(['npm', 'compose', 'dockerfile', 'dotnet', 'static', 'custom']);
+// Společná pole pro add_project a update_project
+const extraFields = {
+  dependsOn: z.array(z.string()).optional().describe('Projekty (název nebo ID), které se musí spustit dřív, např. API před frontendem'),
+  autoInstall: z.boolean().optional().describe('Doinstalovat chybějící node_modules před startem, výchozí true'),
+  projectFile: z.string().optional().describe('dotnet: cesta k webovému .csproj relativně ke složce'),
+  packageManager: z.enum(['npm', 'pnpm', 'yarn']).optional(),
+};
 const framework = z.enum(['vite', 'astro', 'sveltekit', 'next', 'other']);
 const port = z.number().int().min(1).max(65535);
 
@@ -73,7 +80,7 @@ server.registerTool(
   'add_project',
   {
     description:
-      'Přidá projekt ze složky. Typ, název a skript se rozpoznají automaticky (package.json, docker-compose.yml, Dockerfile). ' +
+      'Přidá projekt ze složky. Typ, název a skript se rozpoznají automaticky (package.json, docker-compose.yml, Dockerfile, .csproj, index.html, Python, PHP). ' +
       'Bez portu se vybere volný. Pro vlastní příkaz použij kind=custom a command (placeholder {port}).',
     inputSchema: {
       path: z.string().describe('Absolutní cesta ke složce projektu'),
@@ -86,6 +93,7 @@ server.registerTool(
       containerPort: port.optional().describe('Docker: port uvnitř kontejneru'),
       service: z.string().optional().describe('compose: služba, na kterou se mapuje port'),
       env: z.record(z.string()).optional(),
+      ...extraFields,
     },
   },
   (input) => call(async () => summary(await client.add(input))),
@@ -107,6 +115,7 @@ server.registerTool(
       containerPort: port.optional(),
       service: z.string().optional(),
       env: z.record(z.string()).optional().describe('Nahradí všechny env proměnné'),
+      ...extraFields,
     },
   },
   ({ project, ...patch }) => call(async () => summary(await client.update(project, patch))),

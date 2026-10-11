@@ -29,6 +29,10 @@ public sealed class ProjectDto
     public int Port { get; set; }
     public int? ContainerPort { get; set; }
     public string? Service { get; set; }
+    public string? ProjectFile { get; set; }
+    public string? PackageManager { get; set; }
+    public bool? AutoInstall { get; set; }
+    public List<string>? DependsOn { get; set; }
     public Dictionary<string, string> Env { get; set; } = new();
     public RuntimeInfo Runtime { get; set; } = new();
     public string Url { get; set; } = "";
@@ -47,6 +51,9 @@ public sealed class ProjectInput
     public int? Port { get; set; }
     public int? ContainerPort { get; set; }
     public string? Service { get; set; }
+    public string? ProjectFile { get; set; }
+    public bool? AutoInstall { get; set; }
+    public List<string>? DependsOn { get; set; }
     public Dictionary<string, string>? Env { get; set; }
 }
 
@@ -83,6 +90,11 @@ public sealed class DetectResult
     public List<ServiceInfo> Services { get; set; } = new();
     public string? Service { get; set; }
     public int? ContainerPort { get; set; }
+    public string? ProjectFile { get; set; }
+    public string? PackageManager { get; set; }
+    public bool? NeedsInstall { get; set; }
+    public string? Command { get; set; }
+    public string? Stack { get; set; }
 }
 
 public sealed class PortCheck

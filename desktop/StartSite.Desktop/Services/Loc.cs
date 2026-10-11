@@ -64,6 +64,14 @@ public sealed class Loc : INotifyPropertyChanged
         ["ClearFilters"] = ("Zrušit filtry", "Clear filters"),
         ["ClearSearchTip"] = ("Vymazat hledání (Esc)", "Clear search (Esc)"),
         ["KindCustom"] = ("příkaz", "command"),
+        ["KindStatic"] = ("statický", "static"),
+        ["DependsOn"] = ("Závisí na", "Depends on"),
+        ["StartFirst"] = ("Před spuštěním zapnout", "Start these first"),
+        ["StartFirstHint"] = ("Např. API nebo databázi, kterou web potřebuje. Spustí se dřív a StartSite počká, až poběží.", "For example the API or database the site needs. They start first and StartSite waits until they run."),
+        ["AutoInstall"] = ("Doinstalovat chybějící závislosti (npm install)", "Install missing dependencies (npm install)"),
+        ["ProjectFileLabel"] = ("Projekt (.csproj)", "Project (.csproj)"),
+        ["DotnetHint"] = ("Spustí se přes dotnet run, port dostane parametrem --urls.", "Runs with dotnet run, the port is passed with --urls."),
+        ["StaticHint"] = ("Soubory servíruje vestavěný server StartSite, nic dalšího není potřeba.", "StartSite's built-in server serves the files, nothing else is needed."),
 
         // Stavy
         ["StatusRunning"] = ("Běží", "Running"),

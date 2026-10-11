@@ -16,6 +16,8 @@ const KINDS: { kind: ProjectKind; hint: string }[] = [
   { kind: 'npm', hint: 'package.json' },
   { kind: 'compose', hint: 'docker compose' },
   { kind: 'dockerfile', hint: 'Dockerfile' },
+  { kind: 'dotnet', hint: 'ASP.NET (.csproj)' },
+  { kind: 'static', hint: 'HTML bez buildu' },
   { kind: 'custom', hint: 'vlastní příkaz' },
 ];
 
@@ -87,6 +89,7 @@ export function ProjectForm({ project, initialPath, onClose, onSaved }: Props) {
       setKind(d.kind);
       if (!nameTouched.current) setName(d.name);
       setScript(d.defaultScript ?? '');
+      if (d.command) setCommand(d.command);
       setFramework(d.framework ?? 'other');
       setService(d.service ?? '');
       setContainerPort(d.containerPort ? String(d.containerPort) : '');
@@ -230,7 +233,7 @@ export function ProjectForm({ project, initialPath, onClose, onSaved }: Props) {
 
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-2 text-[13px] font-medium text-zinc-700 dark:text-zinc-300">Typ</legend>
-            <div className="grid grid-cols-2 gap-1 rounded-lg bg-zinc-100 p-1 sm:grid-cols-4 dark:bg-zinc-900">
+            <div className="grid grid-cols-2 gap-1 rounded-lg bg-zinc-100 p-1 sm:grid-cols-3 dark:bg-zinc-900">
               {KINDS.map((k) => (
                 <button
                   key={k.kind}

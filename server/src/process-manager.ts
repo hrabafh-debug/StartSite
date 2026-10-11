@@ -2,7 +2,8 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { projectUrl, type PortOwner, type Project, type ProjectStatus, type ProjectView } from '@startsite/shared';
 import { dataDir, isWindows } from './config.js';
@@ -13,7 +14,14 @@ import type { RuntimeRecord, Store } from './store.js';
 
 const run = promisify(execFile);
 
-const START_TIMEOUT_MS = { npm: 180_000, custom: 180_000, compose: 300_000, dockerfile: 300_000 } as const;
+// Limit pro odpověď portu. Počítá se až po instalaci závislostí, dotnet a Docker se první start i kompilují.
+const START_TIMEOUT_MS = { npm: 180_000, custom: 180_000, static: 60_000, dotnet: 300_000, compose: 300_000, dockerfile: 300_000 } as const;
+const STATIC_SERVER = join(dirname(fileURLToPath(import.meta.url)), 'static-server.js');
+
+/** Projekty, které běží jako proces (ne Docker). */
+export function isProcessKind(kind: Project['kind']) {
+  return kind !== 'compose' && kind !== 'dockerfile';
+}
 const SHELL_NAMES = /^(cmd|node|npm|npx|pnpm|yarn|bun|conhost|sh|bash|zsh|powershell|pwsh)(\.exe)?$/i;
 
 export class StartSiteError extends Error {
@@ -120,8 +128,15 @@ export class ProcessManager {
 
   resolvedCommand(p: Project, port = p.port): string {
     switch (p.kind) {
-      case 'npm':
-        return `npm run ${p.script ?? 'dev'}${npmPortArgs(p, port)}`;
+      case 'npm': {
+        const pm = p.packageManager ?? 'npm';
+        // yarn předá argumenty skriptu i bez "run", ale "run" funguje u všech tří
+        return `${pm} run ${p.script ?? 'dev'}${npmPortArgs(p, port)}`;
+      }
+      case 'dotnet':
+        return `dotnet run --project "${p.projectFile ?? '.'}" --urls http://localhost:${port}`;
+      case 'static':
+        return `"${process.execPath}" "${STATIC_SERVER}" . ${port}`;
       case 'custom':
         return (p.command ?? '').replaceAll('{port}', String(port));
       case 'compose': {
@@ -175,8 +190,8 @@ export class ProcessManager {
 
   // ---------- start ----------
 
-  start(id: string, opts: { port?: number; wait?: boolean } = {}): Promise<ProjectView> {
-    const started = this.withLock(id, () => this.doStart(id, opts.port));
+  start(id: string, opts: { port?: number; wait?: boolean; chain?: string[] } = {}): Promise<ProjectView> {
+    const started = this.withLock(id, () => this.doStart(id, opts.port, opts.chain ?? []));
     if (!opts.wait) return started;
     return started.then(() => this.waitSettled(id));
   }
@@ -198,7 +213,7 @@ export class ProcessManager {
     return p;
   }
 
-  private async doStart(id: string, portOverride?: number): Promise<ProjectView> {
+  private async doStart(id: string, portOverride: number | undefined, chain: string[]): Promise<ProjectView> {
     const p = this.mustGet(id);
     const s = this.state(id);
     if (s.status === 'running' || s.status === 'starting') return this.view(p);
@@ -220,6 +235,8 @@ export class ProcessManager {
     if (p.kind === 'custom' && !p.command?.trim()) {
       throw new StartSiteError('command_required', 'Projekt nemá příkaz');
     }
+
+    await this.startDependencies(p, chain);
 
     const port = p.port;
     // Compose stack spuštěný ručně: převezmeme ho, místo abychom hlásili obsazený port
@@ -255,18 +272,77 @@ export class ProcessManager {
     log.system(`Spouštím: ${this.resolvedCommand(p, port)}`);
 
     try {
-      if (p.kind === 'npm' || p.kind === 'custom') {
-        this.spawnShell(p, port, generation);
+      if (isProcessKind(p.kind)) {
+        // Instalace závislostí může trvat minuty, proto běží na pozadí ve stavu "startuje"
+        void this.prepareAndSpawn(p, port, generation).catch((err) => this.fail(id, generation, err));
       } else {
         // Docker kroky trvají dlouho (build), běží na pozadí ve stavu "startuje".
         void this.startDocker(p, port, generation).catch((err) => this.fail(id, generation, err));
+        void this.healthCheck(p, port, generation);
       }
     } catch (err) {
       this.fail(id, generation, err);
       throw err;
     }
-    void this.healthCheck(p, port, generation);
     return this.view(p);
+  }
+
+  /** Spustí projekty, na kterých tenhle závisí, a počká, až poběží. */
+  private async startDependencies(p: Project, chain: string[]) {
+    for (const depId of p.dependsOn ?? []) {
+      if (chain.includes(depId) || depId === p.id) {
+        throw new StartSiteError('dependency_cycle', `Kruhová závislost: ${[...chain, p.id, depId].join(' → ')}`);
+      }
+      const dep = this.store.projects.find((x) => x.id === depId);
+      if (!dep) {
+        this.logBuffer(p.id).system(`Závislost ${depId} neexistuje, přeskakuji.`);
+        continue;
+      }
+      if (this.state(depId).status === 'running') continue;
+      this.logBuffer(p.id).system(`Nejdřív spouštím ${dep.name}…`);
+      try {
+        const view = await this.start(depId, { wait: true, chain: [...chain, p.id] });
+        if (view.runtime.status !== 'running') throw new Error(view.runtime.error ?? 'nespustil se');
+        this.logBuffer(p.id).system(`${dep.name} běží na ${view.url}`);
+      } catch (err) {
+        const msg = `Závislost ${dep.name} se nespustila: ${(err as Error).message}`;
+        this.logBuffer(p.id).system(msg);
+        this.setStatus(p.id, { status: 'error', error: msg });
+        throw new StartSiteError('dependency_failed', msg);
+      }
+    }
+  }
+
+  /** Doinstaluje chybějící závislosti, spustí proces a hlídá port. */
+  private async prepareAndSpawn(p: Project, port: number, generation: number) {
+    if (p.kind === 'npm' && p.autoInstall !== false && !existsSync(join(p.path, 'node_modules'))) {
+      const pm = p.packageManager ?? 'npm';
+      const ci = pm === 'npm' && existsSync(join(p.path, 'package-lock.json'));
+      const cmd = ci ? 'npm ci' : `${pm} install`;
+      this.logBuffer(p.id).system(`Chybí node_modules, spouštím ${cmd}…`);
+      const code = await this.runShellStep(p, cmd, projectEnv(p, port));
+      if (this.state(p.id).generation !== generation) return;
+      if (code !== 0) throw new Error(`${cmd} skončil s kódem ${code}`);
+    }
+    if (this.state(p.id).generation !== generation || this.state(p.id).stopping) return;
+    this.spawnShell(p, port, generation);
+    void this.healthCheck(p, port, generation);
+  }
+
+  /** Jednorázový příkaz v shellu ve složce projektu (instalace), výstup jde do logu. */
+  private runShellStep(p: Project, cmd: string, env: NodeJS.ProcessEnv): Promise<number> {
+    return new Promise((resolve) => {
+      const log = this.logBuffer(p.id);
+      log.system(`$ ${cmd}`);
+      const child = spawn(cmd, { cwd: p.path, env, shell: true, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+      child.stdout.on('data', (d) => log.write('stdout', d));
+      child.stderr.on('data', (d) => log.write('stderr', d));
+      child.on('error', () => resolve(1));
+      child.on('exit', (code) => {
+        log.flush();
+        resolve(code ?? 1);
+      });
+    });
   }
 
   private fail(id: string, generation: number, err: unknown) {
@@ -435,7 +511,7 @@ export class ProcessManager {
     s.generation++;
     log.system('Zastavuji…');
 
-    if (p.kind === 'npm' || p.kind === 'custom') {
+    if (isProcessKind(p.kind)) {
       const pid = s.pid ?? record?.pid;
       if (pid) await this.killTree(pid);
       if (s.child) await this.waitExit(s.child, 5000);
@@ -560,7 +636,7 @@ export class ProcessManager {
 
   private async reconcileOne(p: Project, rec: RuntimeRecord) {
     const log = this.logBuffer(p.id);
-    if (rec.kind === 'npm' || rec.kind === 'custom') {
+    if (isProcessKind(rec.kind)) {
       const listeners = await listListeners();
       const portPid = listeners.get(rec.port);
       let pid: number | undefined;
@@ -693,7 +769,7 @@ export class ProcessManager {
       if (!s || s.status !== 'running' || s.stopping) continue;
       const rec = this.store.runtime[p.id];
       let alive = true;
-      if (p.kind === 'npm' || p.kind === 'custom') {
+      if (isProcessKind(p.kind)) {
         if (s.child) continue; // exit událost to vyřeší
         alive = s.pid ? isPidAlive(s.pid) : false;
       } else if (rec) {

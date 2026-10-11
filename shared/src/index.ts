@@ -1,6 +1,7 @@
 // Sdílené typy pro server, web, MCP a CLI. Bez importů z Node, aby šly použít i v prohlížeči.
 
-export type ProjectKind = 'npm' | 'compose' | 'dockerfile' | 'custom';
+export type ProjectKind = 'npm' | 'compose' | 'dockerfile' | 'dotnet' | 'static' | 'custom';
+export type PackageManager = 'npm' | 'pnpm' | 'yarn';
 export type Framework = 'vite' | 'astro' | 'sveltekit' | 'next' | 'other';
 export type ProjectStatus = 'stopped' | 'starting' | 'running' | 'error';
 
@@ -19,6 +20,14 @@ export interface Project {
   containerPort?: number;
   /** compose: služba, na kterou se mapuje port */
   service?: string;
+  /** dotnet: cesta k .csproj relativně ke složce projektu */
+  projectFile?: string;
+  /** npm: správce balíčků podle lockfile */
+  packageManager?: PackageManager;
+  /** Před startem doinstalovat chybějící závislosti (node_modules). Výchozí true. */
+  autoInstall?: boolean;
+  /** ID projektů, které se musí spustit dřív (např. API před frontendem) */
+  dependsOn?: string[];
   env: Record<string, string>;
   createdAt: string;
   updatedAt: string;
@@ -57,6 +66,10 @@ export interface ProjectInput {
   port?: number;
   containerPort?: number;
   service?: string;
+  projectFile?: string;
+  packageManager?: PackageManager;
+  autoInstall?: boolean;
+  dependsOn?: string[];
   env?: Record<string, string>;
 }
 
@@ -74,6 +87,15 @@ export interface DetectResult {
   service?: string;
   containerPort?: number;
   composeFile?: string;
+  /** dotnet: nalezený webový .csproj */
+  projectFile?: string;
+  packageManager?: PackageManager;
+  /** npm: chybí node_modules, před startem se doinstalují */
+  needsInstall?: boolean;
+  /** custom: navržený příkaz (Python, PHP...) */
+  command?: string;
+  /** Čím se projekt spustí, pro zobrazení (Vite, ASP.NET, Django...) */
+  stack?: string;
 }
 
 export interface LogLine {

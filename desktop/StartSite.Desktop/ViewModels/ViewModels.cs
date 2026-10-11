@@ -75,7 +75,7 @@ public partial class ProjectItem : ObservableObject
     public string Id => dto.Id;
     public string Name => dto.Name;
     public string Kind => dto.Kind;
-    public string KindLabel => dto.Kind switch { "npm" => "npm", "compose" => "compose", "dockerfile" => "docker", _ => Loc.T("KindCustom") };
+    public string KindLabel => dto.Kind switch { "npm" => "npm", "compose" => "compose", "dockerfile" => "docker", "dotnet" => ".net", "static" => Loc.T("KindStatic"), _ => Loc.T("KindCustom") };
     public string Path => dto.Path;
     public int Port => dto.Port;
     public string PortLabel => $":{dto.Port}";
@@ -90,7 +90,7 @@ public partial class ProjectItem : ObservableObject
     public string ToggleText => IsActive ? Loc.T("Stop") : Loc.T("Start");
     public string Subtitle => IsErrorState && !string.IsNullOrEmpty(dto.Runtime.Error) ? dto.Runtime.Error! : dto.Path;
     public string ResolvedCommand => dto.ResolvedCommand;
-    public string ProcessText => dto.Runtime.Pid is int pid ? $"PID {pid}" : Kind is "npm" or "custom" ? Loc.T("NotRunning") : Loc.T("DockerContainer");
+    public string ProcessText => dto.Runtime.Pid is int pid ? $"PID {pid}" : Kind is not ("compose" or "dockerfile") ? Loc.T("NotRunning") : Loc.T("DockerContainer");
     public List<EnvEntry> EnvEntries => dto.Env.Select(kv => new EnvEntry(kv.Key, kv.Value)).ToList();
     public bool HasEnv => dto.Env.Count > 0;
     public string EnvEmptyText => Loc.F("EnvOnlyPort", dto.Port);
@@ -110,6 +110,11 @@ public partial class ProjectItem : ObservableObject
 
     [ObservableProperty]
     private bool busy;
+
+    /// <summary>Názvy projektů, které se spustí předem. Skládá MainViewModel, protože zná ostatní projekty.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasDepends))]
+    private string dependsText = "";
+    public bool HasDepends => DependsText.Length > 0;
 
     // Logy
     public ObservableCollection<LogItem> Logs { get; } = new();
@@ -168,7 +173,7 @@ public partial class MainViewModel : ObservableObject
         this.host = host;
         this.api = api;
         this.events = events;
-        Form = new ProjectFormViewModel(api, OnSaved);
+        Form = new ProjectFormViewModel(api, OnSaved, () => all);
         UpdateThemeIcon();
         Loc.Instance.Changed += OnLanguageChanged;
     }
@@ -424,6 +429,10 @@ public partial class MainViewModel : ObservableObject
         FilterStoppedText = Loc.F("FilterStopped", all.Count(p => p.Status == "stopped"));
         FilterErrorText = Loc.F("FilterError", all.Count(p => p.IsErrorState));
         ResultText = HasSearch ? Loc.F("Results", filtered.Count, all.Count) : "";
+        foreach (var p in all)
+        {
+            p.DependsText = string.Join(", ", (p.Dto.DependsOn ?? []).Select(id => all.FirstOrDefault(o => o.Id == id)?.Name ?? id));
+        }
         OnPropertyChanged(nameof(HasSearch));
         // Kolekci upravujeme po položkách, aby seznam neztratil výběr
         for (var i = Projects.Count - 1; i >= 0; i--)
@@ -694,6 +703,13 @@ public partial class MainViewModel : ObservableObject
 
 public sealed record KindOption(string Key, string Label, string Hint);
 
+public partial class DependencyOption(string id, string name) : ObservableObject
+{
+    public string Id { get; } = id;
+    public string Name { get; } = name;
+    [ObservableProperty] private bool isSelected;
+}
+
 public partial class EnvRow : ObservableObject
 {
     [ObservableProperty] private string key = "";
@@ -713,10 +729,29 @@ public partial class ProjectFormViewModel : ObservableObject
     DetectResult? detected;
     CancellationTokenSource? portCheckCts;
 
-    public ProjectFormViewModel(ApiClient api, Action<ProjectDto> onSaved)
+    readonly Func<IEnumerable<ProjectItem>> projects;
+
+    public ProjectFormViewModel(ApiClient api, Action<ProjectDto> onSaved, Func<IEnumerable<ProjectItem>> projects)
     {
         this.api = api;
         this.onSaved = onSaved;
+        this.projects = projects;
+    }
+
+    /// <summary>Ostatní projekty, které jde zapnout před tímhle (např. API před webem).</summary>
+    public ObservableCollection<DependencyOption> DependencyOptions { get; } = new();
+    public bool HasDependencyOptions => DependencyOptions.Count > 0;
+
+    [ObservableProperty] private bool autoInstall = true;
+    [ObservableProperty] private string projectFile = "";
+
+    void FillDependencies(string? selfId, IEnumerable<string>? selected)
+    {
+        DependencyOptions.Clear();
+        var chosen = selected?.ToHashSet() ?? [];
+        foreach (var p in projects().Where(p => p.Id != selfId).OrderBy(p => p.Name))
+            DependencyOptions.Add(new DependencyOption(p.Id, p.Name) { IsSelected = chosen.Contains(p.Id) });
+        OnPropertyChanged(nameof(HasDependencyOptions));
     }
 
     public List<KindOption> KindOptions { get; } =
@@ -739,7 +774,7 @@ public partial class ProjectFormViewModel : ObservableObject
     [ObservableProperty] private string saveText = Loc.T("FormAdd");
     [ObservableProperty] private string path = "";
     [ObservableProperty] private string name = "";
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(IsNpm), nameof(IsCustom), nameof(IsDocker), nameof(IsComposeMulti), nameof(ContainerPortHint))]
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(IsNpm), nameof(IsCustom), nameof(IsDocker), nameof(IsDotnet), nameof(IsStatic), nameof(IsComposeMulti), nameof(ContainerPortHint))]
     private string kind = "npm";
     [ObservableProperty, NotifyPropertyChangedFor(nameof(ScriptPreview))] private string? script;
     [ObservableProperty] private int frameworkIndex = 4;
@@ -763,6 +798,8 @@ public partial class ProjectFormViewModel : ObservableObject
     [ObservableProperty] private string? formError;
 
     public bool IsNpm => Kind == "npm";
+    public bool IsDotnet => Kind == "dotnet";
+    public bool IsStatic => Kind == "static";
     public bool IsCustom => Kind == "custom";
     public bool IsDocker => Kind is "compose" or "dockerfile";
     public bool IsComposeMulti => Kind == "compose" && Services.Count > 1;
@@ -822,6 +859,9 @@ public partial class ProjectFormViewModel : ObservableObject
         ContainerPort = "";
         Service = null;
         Path = initialPath ?? "";
+        AutoInstall = true;
+        ProjectFile = "";
+        FillDependencies(null, null);
         PathHint = Loc.T("PathHint");
         IsOpen = true;
         if (!string.IsNullOrWhiteSpace(Path)) _ = DetectAsync(true);
@@ -843,6 +883,9 @@ public partial class ProjectFormViewModel : ObservableObject
         Port = p.Port.ToString();
         ContainerPort = p.ContainerPort?.ToString() ?? "";
         FrameworkIndex = Math.Max(0, Array.IndexOf(FrameworkKeys, p.Framework ?? "other"));
+        AutoInstall = p.AutoInstall != false;
+        ProjectFile = p.ProjectFile ?? "";
+        FillDependencies(p.Id, p.DependsOn);
         foreach (var kv in p.Env) EnvRows.Add(new EnvRow { Key = kv.Key, Value = kv.Value });
         IsOpen = true;
         _ = LoadForEditAsync(p);
@@ -909,6 +952,8 @@ public partial class ProjectFormViewModel : ObservableObject
             FrameworkIndex = Math.Max(0, Array.IndexOf(FrameworkKeys, d.Framework ?? "other"));
             Service = d.Service;
             ContainerPort = d.ContainerPort?.ToString() ?? "";
+            ProjectFile = d.ProjectFile ?? "";
+            if (!string.IsNullOrEmpty(d.Command)) Command = d.Command;
             if (string.IsNullOrEmpty(Port)) Port = (await api.FreePortAsync()).ToString();
         }
         catch (Exception ex)
@@ -1009,6 +1054,9 @@ public partial class ProjectFormViewModel : ObservableObject
             Command = IsCustom ? Command.Trim() : null,
             ContainerPort = IsDocker ? cport : null,
             Service = Kind == "compose" ? Service : null,
+            ProjectFile = IsDotnet && !string.IsNullOrWhiteSpace(ProjectFile) ? ProjectFile.Trim() : null,
+            AutoInstall = IsNpm ? AutoInstall : null,
+            DependsOn = DependencyOptions.Where(o => o.IsSelected).Select(o => o.Id).ToList(),
         };
         Saving = true;
         try
