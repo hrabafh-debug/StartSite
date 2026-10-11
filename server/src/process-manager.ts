@@ -22,7 +22,8 @@ const STATIC_SERVER = join(dirname(fileURLToPath(import.meta.url)), 'static-serv
 export function isProcessKind(kind: Project['kind']) {
   return kind !== 'compose' && kind !== 'dockerfile';
 }
-const SHELL_NAMES = /^(cmd|node|npm|npx|pnpm|yarn|bun|conhost|sh|bash|zsh|powershell|pwsh)(\.exe)?$/i;
+// Procesy, které můžou patřit projektu (shell nebo runtime). Podle nich se po restartu převezme jen "náš" PID.
+const SHELL_NAMES = /^(cmd|node|npm|npx|pnpm|yarn|bun|conhost|sh|bash|zsh|powershell|pwsh|dotnet|python|python3|py|php|uvicorn)(\.exe)?$/i;
 
 export class StartSiteError extends Error {
   constructor(
