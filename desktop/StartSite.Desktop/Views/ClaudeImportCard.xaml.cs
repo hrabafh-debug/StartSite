@@ -13,9 +13,12 @@ public partial class ClaudeImportCard : ContentView
     /// <summary>Registrační příkaz se skutečnou cestou k repu, ať ho jde rovnou vložit do terminálu.</summary>
     static string McpCommand()
     {
-        var root = IPlatformApplication.Current?.Services.GetService<BackendHost>()?.RepoRoot;
+        var host = IPlatformApplication.Current?.Services.GetService<BackendHost>();
+        var root = host?.RepoRoot;
         var entry = root != null ? Path.Combine(root, "mcp", "index.js").Replace('\\', '/') : "<StartSite>/mcp/index.js";
-        return $"claude mcp add startsite -- node \"{entry}\"";
+        // Instalace má vlastní node.exe, kamarádi Node mít nemusí
+        var node = host?.NodeExe is { } exe && exe != "node" ? $"\"{exe.Replace('\\', '/')}\"" : "node";
+        return $"claude mcp add startsite -- {node} \"{entry}\"";
     }
 
     async void OnCopyMcp(object? sender, EventArgs e) => await CopyAsync(CopyMcpButton, McpCommandLabel.Text ?? "");

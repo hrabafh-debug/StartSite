@@ -25,6 +25,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<BackendHost>();
         builder.Services.AddSingleton<ApiClient>();
         builder.Services.AddSingleton<EventStream>();
+        builder.Services.AddSingleton<UpdateService>();
         builder.Services.AddSingleton<MainViewModel>();
         builder.Services.AddSingleton<MainPage>();
 

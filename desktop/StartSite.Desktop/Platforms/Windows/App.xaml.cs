@@ -26,7 +26,7 @@ public partial class App : MauiWinUIApplication
 			Environment.Exit(0);
 		}
 		this.InitializeComponent();
-		// Neošetřené výjimky zapisujeme do %LOCALAPPDATA%\StartSite\crash.log
+		// Neošetřené výjimky zapisujeme do %LOCALAPPDATA%\StartSiteData\crash.log
 		UnhandledException += (_, e) => LogCrash(e.Exception);
 		AppDomain.CurrentDomain.UnhandledException += (_, e) => LogCrash(e.ExceptionObject as Exception);
 		TaskScheduler.UnobservedTaskException += (_, e) => LogCrash(e.Exception);
@@ -54,7 +54,7 @@ public partial class App : MauiWinUIApplication
 	{
 		try
 		{
-			var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "StartSite");
+			var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "StartSiteData");
 			Directory.CreateDirectory(dir);
 			File.AppendAllText(Path.Combine(dir, "crash.log"), $"{DateTime.Now:O}\n{ex}\n\n");
 		}

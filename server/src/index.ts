@@ -1,10 +1,8 @@
 import { existsSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyReply } from 'fastify';
 import type { Framework, Project, ProjectInput, ProjectKind, ProjectPatch, ServerEvent } from '@startsite/shared';
-import { host, port, webDist } from './config.js';
+import { host, port } from './config.js';
 import { detectProject, findComposeFile, readComposeServices } from './detect.js';
 import { bus, stripAnsi } from './logs.js';
 import { checkPort, findFreePort } from './ports.js';
@@ -294,16 +292,8 @@ app.get('/api/events', (req, reply: FastifyReply) => {
   });
 });
 
-// ---------- frontend ----------
-
-if (existsSync(join(webDist, 'index.html'))) {
-  await app.register(fastifyStatic, { root: webDist, wildcard: false });
-  const indexHtml = await readFile(join(webDist, 'index.html'), 'utf8');
-  app.setNotFoundHandler((req, reply) => {
-    if (req.url.startsWith('/api/')) return reply.code(404).send({ error: 'not_found', message: 'Neznámý endpoint' });
-    return reply.type('text/html').send(indexHtml);
-  });
-}
+// Backend je jen API pro desktopovou aplikaci, MCP a CLI, žádné webové rozhraní nemá
+app.setNotFoundHandler((_req, reply) => reply.code(404).send({ error: 'not_found', message: 'Neznámý endpoint' }));
 
 // ---------- start ----------
 

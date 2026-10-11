@@ -24,6 +24,8 @@
                     <Polygon Points="8.5,6 8.5,16 16,11" Fill="{AppThemeBinding Light=#34D399, Dark=#059669}" />
                 </Border>
                 <Label Text="StartSite" FontFamily="{StaticResource SansSemi}" FontSize="14" VerticalOptions="Center" />
+                <Label Text="{Binding VersionText}" Style="{StaticResource MonoLabel}" FontSize="11" VerticalOptions="Center"
+                       TextColor="{AppThemeBinding Light={StaticResource Zinc400}, Dark={StaticResource Zinc600}}" />
                 <Label Text="{Binding Summary}" LineBreakMode="NoWrap" MinimumWidthRequest="72" Style="{StaticResource MonoLabel}" FontSize="12"
                        TextColor="{AppThemeBinding Light={StaticResource Zinc500}, Dark={StaticResource Zinc400}}" VerticalOptions="Center" />
             </HorizontalStackLayout>
@@ -58,6 +60,14 @@
 
         <!-- Linka pod záhlavím okna -->
         <BoxView Grid.Row="0" Style="{StaticResource Divider}" />
+
+        <!-- Dostupná aktualizace -->
+        <Grid Grid.Row="1" IsVisible="{Binding HasUpdate}" Padding="16,8" ColumnDefinitions="*,Auto" ColumnSpacing="12"
+              BackgroundColor="{AppThemeBinding Light=#ECFDF5, Dark=#07211A}" VerticalOptions="Start">
+            <Label Text="{Binding UpdateText}" VerticalOptions="Center" TextColor="{AppThemeBinding Light=#065F46, Dark=#6EE7B7}" />
+            <Button Grid.Column="1" Style="{StaticResource RunButton}" Text="{s:T UpdateInstall}" Command="{Binding InstallUpdateCommand}"
+                    IsEnabled="{Binding UpdateBusy, Converter={StaticResource Not}}" HeightRequest="28" FontSize="12" />
+        </Grid>
 
         <!-- Výpadek spojení -->
         <Grid Grid.Row="1" IsVisible="{Binding Connected, Converter={StaticResource Not}}" Padding="0,6"

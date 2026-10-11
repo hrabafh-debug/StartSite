@@ -437,3 +437,5 @@ cli/dist/
 web/dist/
 examples/*/node_modules/
 examples/*/dist/
+
+artifacts/

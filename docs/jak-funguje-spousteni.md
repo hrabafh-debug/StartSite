@@ -15,10 +15,10 @@ Kód, o kterém je řeč, leží hlavně v těchto souborech:
 
 ## Celkový obraz
 
-Všechno řídí jeden Node.js proces, backend na `127.0.0.1:4500`. Desktopová aplikace, webové rozhraní, CLI i MCP server pro Claude jen volají jeho HTTP API. Proto všechny vidí stejný stav.
+Všechno řídí jeden Node.js proces, backend na `127.0.0.1:4500`. Desktopová aplikace, CLI i MCP server pro Claude jen volají jeho HTTP API. Proto všechny vidí stejný stav.
 
 ```
-desktop / web / CLI / Claude (MCP)
+desktop / CLI / Claude (MCP)
               │  HTTP + SSE
               ▼
         backend (Node, Fastify)
@@ -40,7 +40,7 @@ Pořadí je pro všechny typy stejné. Liší se jen krok 6.
 5. **Kontrola portu.** Backend přečte `netstat -ano` a zkusí port sám obsadit. Když je obsazený, zjistí přes `tasklist` název procesu a PID, najde nejbližší volný port a vrátí chybu 409 s návrhem. Aplikace pak ukáže tlačítko „Spustit na 5181“.
 6. **Spuštění podle typu.** Viz další kapitola.
 7. **Hlídání portu.** Každých 500 ms backend zkusí TCP spojení na `127.0.0.1` i `::1` (Vite často poslouchá jen na IPv6). Jakmile se spojí, nastaví stav Běží. Když port neodpoví v limitu, projekt zastaví a nastaví Chyba.
-8. **Logy.** stdout a stderr jdou do kruhového bufferu (2000 řádků) a živě přes SSE do všech rozhraní. Řádky s „error“, „failed“ a podobnými slovy dostanou příznak chyby.
+8. **Logy.** stdout a stderr jdou do kruhového bufferu (2000 řádků) a živě přes SSE do aplikace. Řádky s „error“, „failed“ a podobnými slovy dostanou příznak chyby.
 
 ## Typy projektů
 

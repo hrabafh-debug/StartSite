@@ -205,8 +205,12 @@ public partial class MainViewModel : ObservableObject
     CancellationTokenSource? portCheckCts;
     bool subscribed;
 
-    public MainViewModel(BackendHost host, ApiClient api, EventStream events)
+    readonly UpdateService updates;
+
+    public MainViewModel(BackendHost host, ApiClient api, EventStream events, UpdateService updates)
     {
+        this.updates = updates;
+        VersionText = "v" + updates.CurrentVersion;
         this.host = host;
         this.api = api;
         this.events = events;
@@ -291,6 +295,12 @@ public partial class MainViewModel : ObservableObject
                 uptime.Interval = TimeSpan.FromSeconds(30);
                 uptime.Tick += (_, _) => Selected?.RefreshUptime();
                 uptime.Start();
+                // Aktualizace: hned po startu a pak každých 6 hodin
+                _ = CheckUpdatesAsync();
+                var updateTimer = Application.Current.Dispatcher.CreateTimer();
+                updateTimer.Interval = TimeSpan.FromHours(6);
+                updateTimer.Tick += (_, _) => _ = CheckUpdatesAsync();
+                updateTimer.Start();
             }
             await ReloadAsync(false);
         }
@@ -306,6 +316,43 @@ public partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     Task Retry() => InitAsync();
+
+    // ---------- aktualizace ----------
+
+    public string VersionText { get; }
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasUpdate))] private string? updateVersion;
+    [ObservableProperty] private bool updateBusy;
+    [ObservableProperty] private string updateText = "";
+    public bool HasUpdate => UpdateVersion != null;
+
+    async Task CheckUpdatesAsync()
+    {
+        try
+        {
+            UpdateVersion = await updates.CheckAsync();
+            if (UpdateVersion != null) UpdateText = Loc.F("UpdateAvailable", UpdateVersion);
+        }
+        catch
+        {
+            // Bez internetu nebo GitHub neodpovídá: zkusíme příště
+        }
+    }
+
+    [RelayCommand]
+    async Task InstallUpdate()
+    {
+        if (UpdateBusy) return;
+        UpdateBusy = true;
+        try
+        {
+            await updates.ApplyAsync(pct => MainThread.BeginInvokeOnMainThread(() => UpdateText = Loc.F("UpdateDownloading", pct)));
+        }
+        catch (Exception ex)
+        {
+            UpdateText = Loc.F("UpdateFailed", ex.Message);
+            UpdateBusy = false;
+        }
+    }
 
     bool restartingBackend;
 

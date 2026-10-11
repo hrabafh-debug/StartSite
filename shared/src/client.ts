@@ -2,6 +2,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, openSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import type {
   ApiError,
@@ -15,6 +16,12 @@ import type {
 import { DEFAULT_STARTSITE_PORT } from './index.js';
 
 export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+/** Stejně jako server/src/config.ts: nainstalovaná verze má data mimo složku aplikace. */
+export const dataDir = resolve(
+  process.env.STARTSITE_DATA ||
+    (existsSync(join(repoRoot, '.installed')) ? join(process.env.LOCALAPPDATA || homedir(), 'StartSiteData') : join(repoRoot, 'data')),
+);
 
 export class ApiRequestError extends Error {
   constructor(
@@ -63,7 +70,6 @@ export class StartSiteClient {
     if (!existsSync(entry)) {
       throw new Error(`Backend není sestavený (${entry}). Spusť "npm run build" v ${repoRoot}.`);
     }
-    const dataDir = join(repoRoot, 'data');
     mkdirSync(dataDir, { recursive: true });
     const log = openSync(join(dataDir, 'server.log'), 'a');
     const port = new URL(this.baseUrl).port;

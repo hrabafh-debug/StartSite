@@ -10,7 +10,6 @@
     "dev": "tsx watch --clear-screen=false src/index.ts"
   },
   "dependencies": {
-    "@fastify/static": "^10.1.6",
     "@startsite/shared": "*",
     "fastify": "^5.12.5",
     "yaml": "^2.7.0"

@@ -25,12 +25,29 @@ public sealed class BackendHost
         var fromEnv = Environment.GetEnvironmentVariable("STARTSITE_ROOT");
         if (!string.IsNullOrEmpty(fromEnv) && File.Exists(Path.Combine(fromEnv, "server", "dist", "index.js"))) return fromEnv;
         // Aplikace leží v <repo>/desktop/..., stačí jít nahoru
+        // Instalace: backend leží ve složce backend vedle StartSite.exe
+        var bundled = Path.Combine(AppContext.BaseDirectory, "backend");
+        if (File.Exists(Path.Combine(bundled, "server", "dist", "index.js"))) return bundled;
+        // Vývoj: aplikace leží v <repo>/desktop/..., stačí jít nahoru
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
         {
             if (File.Exists(Path.Combine(dir.FullName, "server", "dist", "index.js"))) return dir.FullName;
         }
         return null;
     }
+
+    /// <summary>Přibalený node.exe v instalaci, jinak node z PATH.</summary>
+    public string NodeExe => RepoRoot != null && File.Exists(Path.Combine(RepoRoot, "node", "node.exe"))
+        ? Path.Combine(RepoRoot, "node", "node.exe")
+        : "node";
+
+    /// <summary>Stejná logika jako server/src/config.ts: instalace má data mimo složku aplikace.</summary>
+    public string? DataDir => Environment.GetEnvironmentVariable("STARTSITE_DATA") is { Length: > 0 } env
+        ? env
+        : RepoRoot == null ? null
+        : File.Exists(Path.Combine(RepoRoot, ".installed"))
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "StartSiteData")
+            : Path.Combine(RepoRoot, "data");
 
     public async Task<bool> IsUpAsync()
     {
@@ -53,10 +70,10 @@ public sealed class BackendHost
             throw new InvalidOperationException("Nenašel jsem sestavený backend (server/dist/index.js). V repu spusť npm install a npm run build, případně nastav STARTSITE_ROOT.");
 
         var entry = Path.Combine(RepoRoot, "server", "dist", "index.js");
-        var log = Path.Combine(RepoRoot, "data", "server.log");
+        var log = Path.Combine(DataDir!, "server.log");
         Directory.CreateDirectory(Path.GetDirectoryName(log)!);
         // Přes cmd s přesměrováním do souboru: backend pak nezávisí na rourách aplikace a přežije její zavření
-        var psi = new ProcessStartInfo("cmd.exe", $"/d /c node \"{entry}\" >> \"{log}\" 2>&1")
+        var psi = new ProcessStartInfo("cmd.exe", $"/d /c \"\"{NodeExe}\" \"{entry}\" >> \"{log}\" 2>&1\"")
         {
             WorkingDirectory = RepoRoot,
             CreateNoWindow = true,
